@@ -1,4 +1,4 @@
-package main
+package messaging
 
 import (
 	"bufio"
@@ -7,16 +7,13 @@ import (
 	"os"
 )
 
-// connection params
-const (
-	ConnHost = "localhost"
-	ConnPort = "3333"
-	ConnType = "tcp"
-)
-
-func main() {
+func InitNode(params connParams) {
 	// connect to this socket
-	conn, _ := net.Dial(ConnType, ConnHost+":"+ConnPort)
+	conn, err := net.Dial(params.protocol, params.ip+":"+params.port)
+	if err != nil {
+		fmt.Println("Error dialing:", err.Error())
+		os.Exit(1)
+	}
 	for {
 		// read in input from stdin
 		reader := bufio.NewReader(os.Stdin)

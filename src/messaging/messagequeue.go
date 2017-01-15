@@ -1,4 +1,4 @@
-package main
+package messaging
 
 import (
 	"bufio"
@@ -8,23 +8,15 @@ import (
 	"strings"
 )
 
-// connection params
-const (
-	ConnHost = "localhost"
-	ConnPort = "3333"
-	ConnType = "tcp"
-)
-
-func main() {
+func InitQueue(params connParams) {
 	// Listen for incoming connections.
-	l, err := net.Listen(ConnType, ConnHost+":"+ConnPort)
+	l, err := net.Listen(params.protocol, params.ip+":"+params.port)
 	if err != nil {
 		fmt.Println("Error listening:", err.Error())
 		os.Exit(1)
 	}
-	// Close the listener when the application closes.
 	defer l.Close()
-	fmt.Println("Listening on " + ConnHost + ":" + ConnPort)
+	fmt.Println("Listening on " + params.ip + ":" + params.port)
 	for {
 		// Listen for an incoming connection.
 		conn, err := l.Accept()
