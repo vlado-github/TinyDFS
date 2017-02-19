@@ -30,9 +30,19 @@ func TestConnectingToQueue(t *testing.T) {
 
 func TestSendingToQueue(t *testing.T) {
 	err := InitNode(queueConnParams)
-	if err == nil {
-		SendEvent("Hello world!")
-	} else {
+	if err != nil {
+		t.Fail()
+	}
+	SendEvent("Hello world!")
+}
+
+func TestCloseNode(t *testing.T) {
+	err := InitNode(queueConnParams)
+	if err != nil {
+		t.Fail()
+	}
+	close_err := CloseConn()
+	if close_err != nil {
 		t.Fail()
 	}
 }

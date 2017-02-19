@@ -40,8 +40,13 @@ func ReceiveEvent() string{
 	return  event;
 }
 
-func CloseConn(){
-	conn.Close();
+func CloseConn() error{
+	err := conn.Close()
+	if err != nil {
+		return err
+	}
+	fmt.Println("[Client] Connection closed.")
+	return err
 }
 
 

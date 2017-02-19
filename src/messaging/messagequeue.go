@@ -45,6 +45,7 @@ func receiveMessage(conn net.Conn) {
 		} else {
 			fmt.Print("[Queue] Connection closed.")
 			conn.Close()
+			break
 		}
 	}
 }
