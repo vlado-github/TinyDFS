@@ -6,7 +6,7 @@ import (
 	"runtime"
 )
 
-var queueConnParams = connParams{
+var queueConnParams = ConnParams{
 	"localhost","3333","tcp",
 }
 
