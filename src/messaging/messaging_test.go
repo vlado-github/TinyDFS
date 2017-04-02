@@ -33,7 +33,7 @@ func TestSendingToQueue(t *testing.T) {
 	if err != nil {
 		t.Fail()
 	}
-	SendEvent("Hello world!")
+	SendMessage("Hello world!")
 }
 
 func TestCloseNode(t *testing.T) {

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"log"
 	"github.com/google/uuid"
+	"sync"
 )
 type Pool struct {
 	conns []net.Conn
@@ -16,6 +17,7 @@ type Pool struct {
 var pool = Pool{}
 
 var messageBuffer map[string]Message
+var mutex = &sync.Mutex{}
 
 func InitQueue(params ConnParams) {
 	// Crete message buffer
@@ -44,6 +46,7 @@ func InitQueue(params ConnParams) {
 		fmt.Println("[Queue] Client Connected...")
 		conn.Write([]byte("CONN_ACK\n"))
 		go receiveMessage(conn)
+		go sendingMessages()
 	}
 }
 
@@ -53,20 +56,37 @@ func receiveMessage(conn net.Conn) {
 		scanner := bufio.NewScanner(conn)
 		if ok := scanner.Scan(); ok {
 			message := scanner.Text()
-			// output message received
-			fmt.Print("[Queue] Message Received:", message+"\n")
-			// sample process for string received
-			newmessage := strings.ToUpper(message)
-			// send new string back to client
-			conn.Write([]byte(newmessage + "\n"))
-			strUUID := uuid.New().String()
-			messageBuffer[strUUID] = Message{message}
-			fmt.Println(messageBuffer[strUUID])
+			key := uuid.New().String()
+
+			mutex.Lock()
+			messageBuffer[key] = Message{message}
+			fmt.Print("[Queue] Message Received:", messageBuffer[key].text+"\n")
+			mutex.Unlock()
 		} else {
 			fmt.Print("[Queue] Connection closed.")
 			conn.Close()
 			break
 		}
+	}
+}
+
+// Sending messages from buffer as broadcast
+func sendingMessages(){
+	for {
+		mutex.Lock()
+		for index,message := range messageBuffer {
+			for _,conn := range pool.conns {
+				// sends message to each client
+				newmessage := strings.ToUpper(message.text)
+				fmt.Print("[Queue] Sending: ", newmessage+"\n")
+				_, err := conn.Write([]byte(newmessage + "\n"))
+				if err != nil {
+					fmt.Print(err.Error())
+				}
+			}
+			delete(messageBuffer, index)
+		}
+		mutex.Unlock()
 	}
 }
 

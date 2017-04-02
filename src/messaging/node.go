@@ -18,28 +18,26 @@ func InitNode(params ConnParams) error {
 		fmt.Println("Error dialing:", err.Error())
 		log.Fatal(err)
 	} else {
-		for {
-			ack_msg := ReceiveEvent()
-			if ack_msg == "CONN_ACK\n" {
-				fmt.Println("[Client] Connected")
-				break;
-			}
-		}
+		go receiveMessages(conn)
 	}
 	return err
 }
 
 // sends message to queue
-func SendEvent(message string){
+func SendMessage(message string){
 	fmt.Println("[Client] Sending: ", message)
 	fmt.Fprintf(conn, message + "\n")
 }
 
 // receives message from queue
-func ReceiveEvent() string{
-	event, _ := bufio.NewReader(conn).ReadString('\n')
-	fmt.Println("[Client] Received: ", event)
-	return  event;
+func receiveMessages(conn net.Conn){
+	for {
+		message, _ := bufio.NewReader(conn).ReadString('\n')
+		fmt.Println("[Client] Received: ", message)
+		if message == "CONN_ACK\n" {
+			fmt.Println("[Client] Connected")
+		}
+	}
 }
 
 func CloseConn() error{
