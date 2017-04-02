@@ -8,6 +8,12 @@ import (
 	"strings"
 )
 
+type Pool struct {
+	conns []net.Conn
+}
+
+var pool = Pool{}
+
 func InitQueue(params connParams) {
 	// Listen for incoming connections.
 	l, err := net.Listen(params.protocol, params.ip+":"+params.port)
@@ -20,7 +26,8 @@ func InitQueue(params connParams) {
 	for {
 		// Listen for an incoming connection.
 		conn, err := l.Accept()
-		fmt.Println("Client Connected...")
+		pool.conns = append(pool.conns, conn)
+		fmt.Println("Client Connected...Total:",len(pool.conns))
 		if err != nil {
 			fmt.Println("Error accepting: ", err.Error())
 			os.Exit(1)
@@ -36,7 +43,7 @@ func receiveMessage(conn net.Conn) {
 		if ok := scanner.Scan(); ok {
 			message := scanner.Text()
 			// output message received
-			fmt.Print("Message Received:", message+"\n")
+			fmt.Print("\nMessage Received:", message+"\n")
 			// sample process for string received
 			newmessage := strings.ToUpper(message)
 			// send new string back to client
@@ -46,3 +53,10 @@ func receiveMessage(conn net.Conn) {
 		}
 	}
 }
+
+func sendMessages(){
+	for {
+
+	}
+}
+
