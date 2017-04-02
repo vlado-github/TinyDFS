@@ -6,11 +6,7 @@ import (
 	"runtime"
 )
 
-var queueConnParams = connParams{
-	"localhost","3333","tcp",
-}
-
-var nodeConnParams = connParams{
+var queueConnParams = ConnParams{
 	"localhost","3333","tcp",
 }
 
@@ -25,6 +21,28 @@ func TestMain(m *testing.M) {
 	InitQueue(queueConnParams)
 }
 
-func TestParallelStart(t *testing.T) {
-	InitNode(nodeConnParams)
+func TestConnectingToQueue(t *testing.T) {
+	err := InitNode(queueConnParams)
+	if err != nil {
+		t.Fail()
+	}
+}
+
+func TestSendingToQueue(t *testing.T) {
+	err := InitNode(queueConnParams)
+	if err != nil {
+		t.Fail()
+	}
+	SendEvent("Hello world!")
+}
+
+func TestCloseNode(t *testing.T) {
+	err := InitNode(queueConnParams)
+	if err != nil {
+		t.Fail()
+	}
+	close_err := CloseConn()
+	if close_err != nil {
+		t.Fail()
+	}
 }
