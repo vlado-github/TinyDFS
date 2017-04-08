@@ -7,32 +7,49 @@ import (
 	"log"
 )
 
-var conn net.Conn;
+type Node interface {
+	Run() error
+	SendMessage(message string)
+	CloseConn() error
+}
 
-func InitNode(params ConnParams) error {
-	// connect to queue
+type node struct {
+	connParams ConnParams
+	conn net.Conn
+}
+
+// Creates new instance of node
+func NewNode(conn ConnParams) Node{
+	return &node{
+		connParams: conn,
+	}
+}
+
+// Starts a node and connects to the queue
+func (n *node) Run() error {
+	// connects to queue
 	var err error
-	conn, err = net.Dial(params.protocol, params.ip + ":" + params.port)
+	n.conn, err = net.Dial(n.connParams.Protocol, n.connParams.Ip + ":" + n.connParams.Port)
 
 	if err != nil {
 		fmt.Println("Error dialing:", err.Error())
 		log.Fatal(err)
 	} else {
-		go receiveMessages(conn)
+		go n.receiveMessages()
 	}
 	return err
 }
 
-// sends message to queue
-func SendMessage(message string){
+// Sends message to the queue
+func (n *node) SendMessage(message string){
 	fmt.Println("[Client] Sending: ", message)
-	fmt.Fprintf(conn, message + "\n")
+	fmt.Fprintf(n.conn, message + "\n")
 }
 
-// receives message from queue
-func receiveMessages(conn net.Conn){
+// Receives messages from the queue
+func (n *node) receiveMessages(){
 	for {
-		message, _ := bufio.NewReader(conn).ReadString('\n')
+		message, _ := bufio.NewReader(n.conn).ReadString('\n')
 		fmt.Println("[Client] Received: ", message)
 		if message == "CONN_ACK\n" {
 			fmt.Println("[Client] Connected")
@@ -40,8 +57,9 @@ func receiveMessages(conn net.Conn){
 	}
 }
 
-func CloseConn() error{
-	err := conn.Close()
+// Close connection to the queue
+func (n *node) CloseConn() error{
+	err := n.conn.Close()
 	if err != nil {
 		log.Fatal(err)
 		return err

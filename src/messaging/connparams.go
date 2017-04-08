@@ -1,7 +1,7 @@
 package messaging
 
 type ConnParams struct {
-	ip    string
-	port  string
-	protocol string
+	Ip    string
+	Port  string
+	Protocol string
 }
