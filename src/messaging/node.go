@@ -49,10 +49,18 @@ func (n *node) SendMessage(message string){
 // Receives messages from the queue
 func (n *node) receiveMessages(){
 	for {
-		message, _ := bufio.NewReader(n.conn).ReadString('\n')
-		fmt.Println("[Client] Received: ", message)
-		if message == "CONN_ACK\n" {
-			fmt.Println("[Client] Connected")
+		var err error
+		var message string
+
+		message, err = bufio.NewReader(n.conn).ReadString('\n')
+		if err != nil {
+			fmt.Println("Error: Queue connection is closed.", err.Error())
+			break
+		} else {
+			fmt.Println("[Client] Received: ", message)
+			if message == "CONN_ACK\n" {
+				fmt.Println("[Client] Connected")
+			}
 		}
 	}
 }
