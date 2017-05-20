@@ -1,7 +1,9 @@
 package messaging
 
-import "net"
+import (
+	"net"
+)
 
 type Pool struct {
-	conns []net.Conn
+	conns map[string]net.Conn
 }

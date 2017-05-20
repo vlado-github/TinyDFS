@@ -5,6 +5,7 @@ import (
 	"messaging"
 	"bufio"
 	"os"
+	"github.com/google/uuid"
 )
 
 func main() {
@@ -20,7 +21,8 @@ func main() {
 		reader := bufio.NewReader(os.Stdin)
 		fmt.Print("Enter text: ")
 		text, _ := reader.ReadString('\n')
-		node.SendMessage(text)
+		var message = messaging.Message{Key:uuid.New(), Topic:"Temp", Text:text}
+		node.SendMessage(message)
 	}
 }
 

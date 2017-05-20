@@ -1,15 +1,15 @@
 package messaging
 
 import (
-	"bufio"
 	"fmt"
 	"net"
 	"log"
+	"encoding/json"
 )
 
 type Node interface {
 	Run() error
-	SendMessage(message string)
+	SendMessage(message Message)
 	CloseConn() error
 }
 
@@ -41,24 +41,24 @@ func (n *node) Run() error {
 }
 
 // Sends message to the queue
-func (n *node) SendMessage(message string){
-	fmt.Println("[Client] Sending: ", message)
-	fmt.Fprintf(n.conn, message + "\n")
+func (n *node) SendMessage(message Message){
+	//fmt.Print("[Client] Sending: ", message.Text+"\n")
+	encoder := json.NewEncoder(n.conn)
+	encodeMessage(&message, encoder)
 }
 
 // Receives messages from the queue
 func (n *node) receiveMessages(){
+	decoder := json.NewDecoder(n.conn)
 	for {
-		var err error
-		var message string
-
-		message, err = bufio.NewReader(n.conn).ReadString('\n')
+		var message Message
+		err := decodeMessage(&message, decoder)
 		if err != nil {
 			fmt.Println("Error: Queue connection is closed.", err.Error())
 			break
 		} else {
-			fmt.Println("[Client] Received: ", message)
-			if message == "CONN_ACK\n" {
+			fmt.Println("[Client] Received: ", message.Topic, message.Text)
+			if message.Text == "CONN_ACK" {
 				fmt.Println("[Client] Connected")
 			}
 		}

@@ -1,18 +1,18 @@
 package messaging
 
 import (
-	"bufio"
 	"fmt"
 	"net"
 	"os"
-	"strings"
 	"log"
 	"github.com/google/uuid"
 	"sync"
+	"encoding/json"
 )
 
 type MessageQueue interface{
 	Run()
+	Status()
 }
 
 type messagequeue struct {
@@ -30,10 +30,15 @@ func NewQueue(conn ConnParams) MessageQueue{
 	}
 }
 
+func (queue *messagequeue) init() {
+	// Cretes instance of message buffer and connection pool
+	queue.messageBuffer = make(map[string]Message)
+	queue.pool.conns = make(map[string]net.Conn)
+}
+
 // Starts the queue and listens for incoming connections
 func (queue *messagequeue) Run() {
-	// Cretes instance of message buffer
-	queue.messageBuffer = make(map[string]Message)
+	queue.init();
 
 	l, err := net.Listen(queue.connParams.Protocol, queue.connParams.Ip+":"+queue.connParams.Port)
 	if err != nil {
@@ -47,57 +52,66 @@ func (queue *messagequeue) Run() {
 	for {
 		// Listen for an incoming connection.
 		conn, err := l.Accept()
-		queue.pool.conns = append(queue.pool.conns, conn)
-		fmt.Println("Client Connected...Total:",len(queue.pool.conns))
+		var poolKey = uuid.New().String()
+		queue.pool.conns[poolKey] = conn
+		queue.Status()
 		if err != nil {
 			fmt.Println("[Queue] Error accepting: ", err.Error())
 			log.Fatal(err)
 			os.Exit(1)
 		}
 		fmt.Println("[Queue] Client Connected...")
-		conn.Write([]byte("CONN_ACK\n"))
-		go queue.receiveMessage(conn)
+
+		var message = Message{Key:uuid.New(), Topic:"CONN_ACK", Text:"CONN_ACK"}
+		encoder := json.NewEncoder(conn)
+		encodeMessage(&message, encoder)
+
+		go queue.receiveMessage(conn, poolKey)
 		go queue.sendingMessages()
 	}
 }
 
 // Handles incoming messages
-func (queue *messagequeue) receiveMessage(conn net.Conn) {
+func (queue *messagequeue) receiveMessage(conn net.Conn, poolKey string) {
+	decoder := json.NewDecoder(conn)
 	for {
-		scanner := bufio.NewScanner(conn)
-		if ok := scanner.Scan(); ok {
-			message := scanner.Text()
-			key := uuid.New().String()
-
-			mutex.Lock()
-			queue.messageBuffer[key] = Message{message}
-			fmt.Print("[Queue] Message Received:", queue.messageBuffer[key].text+"\n")
-			mutex.Unlock()
-		} else {
-			fmt.Print("[Queue] Connection closed.")
+		var message = Message{}
+		err := decodeMessage(&message, decoder)
+		if err != nil {
+			fmt.Println("[Queue] Connection closed.")
 			conn.Close()
+			delete(queue.pool.conns, poolKey)
+			queue.Status()
 			break
 		}
+
+		mutex.Lock()
+		var key = message.Key.String()
+		queue.messageBuffer[key] = Message{Key: message.Key, Topic: message.Topic, Text: message.Text}
+		fmt.Println("[Queue] Message Received:", queue.messageBuffer[key].Text)
+		mutex.Unlock()
 	}
 }
 
-// Sends messages from buffer to all clientst
+// Sends messages from buffer to all clients
 func (queue *messagequeue) sendingMessages(){
 	for {
 		mutex.Lock()
 		for index,message := range queue.messageBuffer {
 			for _,conn := range queue.pool.conns {
-				// sends message to each client
-				newmessage := strings.ToUpper(message.text)
-				fmt.Print("[Queue] Sending: ", newmessage+"\n")
-				_, err := conn.Write([]byte(newmessage + "\n"))
-				if err != nil {
-					fmt.Print(err.Error())
+				if conn != nil {
+					encoder := json.NewEncoder(conn)
+					encodeMessage(&message, encoder)
+					fmt.Print("[Queue] Sending: ", message.Text + "\n")
 				}
 			}
 			delete(queue.messageBuffer, index)
 		}
 		mutex.Unlock()
 	}
+}
+
+func (queue *messagequeue) Status(){
+	fmt.Println("[Queue] Total connections:",len(queue.pool.conns))
 }
 
