@@ -4,6 +4,7 @@ import (
 	"testing"
 	"os"
 	"runtime"
+	"github.com/google/uuid"
 )
 
 var queueConnParams = ConnParams{
@@ -36,7 +37,8 @@ func TestSendingToQueue(t *testing.T) {
 	if err != nil {
 		t.Fail()
 	}
-	node.SendMessage("Hello world!")
+	var message = Message{Key:uuid.New(), Topic:"Test", Text:"Hello world!"}
+	node.SendMessage(message)
 }
 
 func TestCloseNode(t *testing.T) {
