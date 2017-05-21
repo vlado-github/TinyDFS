@@ -86,7 +86,7 @@ func (queue *messagequeue) receiveMessage(conn net.Conn, poolKey string) {
 		}
 
 		mutex.Lock()
-		var key = message.Key.String()
+		var key = uuid.New().String()
 		queue.messageBuffer[key] = Message{Key: message.Key, Topic: message.Topic, Text: message.Text}
 		fmt.Println("[Queue] Message Received:", queue.messageBuffer[key].Text)
 		mutex.Unlock()

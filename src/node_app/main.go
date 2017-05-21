@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"os"
 	"github.com/google/uuid"
+	"strings"
 )
 
 func main() {
@@ -19,10 +20,15 @@ func main() {
 	node.Run()
 	for {
 		reader := bufio.NewReader(os.Stdin)
-		fmt.Print("Enter text: ")
+		fmt.Print("Enter topic#text:")
 		text, _ := reader.ReadString('\n')
-		var message = messaging.Message{Key:uuid.New(), Topic:"Temp", Text:text}
-		node.SendMessage(message)
+		msgArgs := strings.Split(text,"#")
+		if len(msgArgs) != 2 {
+			fmt.Println("Error: Invalid input. Hint 'sport#We're watching a match.'")
+		} else {
+			var message = messaging.Message{Key:uuid.New(), Topic:msgArgs[0], Text:msgArgs[1]}
+			node.SendMessage(message)
+		}
 	}
 }
 
