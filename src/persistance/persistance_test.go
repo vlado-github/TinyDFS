@@ -54,7 +54,7 @@ func TestFileManager_Read(t *testing.T) {
 	if err != nil {
 		t.Fail()
 	}
-	if data == "" {
+	if data != cmd.Text {
 		t.Fail()
 	}
 }

@@ -36,7 +36,7 @@ func NewFileManager(pathToDir string, topic string) FileManager{
 
 func (fm *fileManager) Write(command Command) error {
 	w := bufio.NewWriter(fm.file)
-	size, err := w.WriteString(command.Key.String() + " : " +command.Text+"\n")
+	size, err := w.WriteString(command.Key.String() + ":" +command.Text+"\n")
 	if err != nil {
 		fmt.Println("Persistance: Write to file failed.", size, err.Error())
 		log.Fatal(err)
@@ -46,12 +46,16 @@ func (fm *fileManager) Write(command Command) error {
 }
 
 func (fm *fileManager) Read(query Query) (string, error) {
-	scanner := bufio.NewScanner(fm.file)
+	fileHandle, _ := os.Open(fm.file.Name())
+	defer fileHandle.Close()
+	scanner := bufio.NewScanner(fileHandle)
 	for scanner.Scan() {
 		text := scanner.Text()
-		fmt.Println(text)
 		if strings.Contains(text, query.Key.String()) {
-			return text, nil
+			result := strings.SplitN(text, ":", 2)
+			if len(result) == 2 {
+				return result[1], nil
+			}
 		}
 	}
 	err := errors.New("Item not found")
