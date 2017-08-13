@@ -11,6 +11,10 @@
 _obj
 _test
 
+# Libs
+github.com
+golang.org
+
 # Architecture specific extensions/prefixes
 *.[568vq]
 [568vq].out
