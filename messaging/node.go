@@ -1,10 +1,13 @@
 package messaging
 
 import (
-	"fmt"
-	"net"
-	"log"
 	"encoding/json"
+	"fmt"
+	"log"
+	"net"
+	"persistance"
+
+	"github.com/google/uuid"
 )
 
 type Node interface {
@@ -14,14 +17,16 @@ type Node interface {
 }
 
 type node struct {
-	connParams ConnParams
-	conn net.Conn
+	connParams  ConnParams
+	conn        net.Conn
+	fileManager persistance.FileManager
 }
 
 // Creates new instance of node
-func NewNode(conn ConnParams) Node{
+func NewNode(conn ConnParams, fm persistance.FileManager) Node {
 	return &node{
-		connParams: conn,
+		connParams:  conn,
+		fileManager: fm,
 	}
 }
 
@@ -29,7 +34,7 @@ func NewNode(conn ConnParams) Node{
 func (n *node) Run() error {
 	// connects to queue
 	var err error
-	n.conn, err = net.Dial(n.connParams.Protocol, n.connParams.Ip + ":" + n.connParams.Port)
+	n.conn, err = net.Dial(n.connParams.Protocol, n.connParams.Ip+":"+n.connParams.Port)
 
 	if err != nil {
 		fmt.Println("Error dialing:", err.Error())
@@ -41,14 +46,14 @@ func (n *node) Run() error {
 }
 
 // Sends message to the queue
-func (n *node) SendMessage(message Message){
+func (n *node) SendMessage(message Message) {
 	//fmt.Print("[Client] Sending: ", message.Text+"\n")
 	encoder := json.NewEncoder(n.conn)
 	encodeMessage(&message, encoder)
 }
 
 // Receives messages from the queue
-func (n *node) receiveMessages(){
+func (n *node) receiveMessages() {
 	decoder := json.NewDecoder(n.conn)
 	for {
 		var message Message
@@ -60,13 +65,17 @@ func (n *node) receiveMessages(){
 			fmt.Println("[Client] Received: ", message.Topic, message.Text)
 			if message.Text == "CONN_ACK" {
 				fmt.Println("[Client] Connected")
+			} else {
+				var guid = uuid.New()
+				var cmd = persistance.Command{Key: guid, Text: message.Text, Topic: message.Topic}
+				n.fileManager.Write(cmd)
 			}
 		}
 	}
 }
 
 // Close connection to the queue
-func (n *node) CloseConn() error{
+func (n *node) CloseConn() error {
 	err := n.conn.Close()
 	if err != nil {
 		log.Fatal(err)
@@ -75,5 +84,3 @@ func (n *node) CloseConn() error{
 	fmt.Println("[Client] Connection closed.")
 	return err
 }
-
-

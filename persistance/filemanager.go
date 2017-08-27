@@ -1,62 +1,69 @@
 package persistance
 
 import (
-	"os"
-	"fmt"
-	"log"
 	"bufio"
-	"io/ioutil"
-	"strings"
-	"errors"
-	"path"
-	"sync"
 	"bytes"
+	"errors"
+	"fmt"
+	"io/ioutil"
+	"log"
+	"os"
+	"path"
+	"strings"
+	"sync"
 )
 
 type FileManager interface {
 	Write(command Command) error
 	Update(command Command) error
 	Read(query Query) (string, error)
-	ReadFile() ([]byte, error)
-	Close() error
+	ReadFile(topic string) ([]byte, error)
+	//Close() error
 }
 
-type fileManager struct{
-	file *os.File
+type fileManager struct {
+	pathToDir string
 }
 
 var mutex = &sync.Mutex{}
 var pos int64
 
-func NewFileManager(pathToDir string, topic string) FileManager{
-	pathToFile := path.Clean(path.Join( pathToDir, topic))
-	f, err := os.Create(pathToFile)
+// Creates instance of FileManager
+func NewFileManager(pathDir string) FileManager {
+	pathToDir := path.Clean(path.Join(pathDir))
+	err := os.MkdirAll(pathToDir, os.ModePerm)
 	if err != nil {
-		fmt.Println("Persistance: Can not create a file.", err.Error())
+		fmt.Println("Persistance: Can not create a directory.", err.Error())
 		log.Fatal(err)
 	}
+
 	return &fileManager{
-		file : f,
+		pathToDir: pathToDir,
 	}
 }
 
 func (fm *fileManager) Write(command Command) error {
 	mutex.Lock()
 	defer mutex.Unlock()
-	w := bufio.NewWriter(fm.file)
-	size, err := w.WriteString(command.Key.String() + ":" +command.Text+"\n")
+	pathToFile := path.Clean(path.Join(fm.pathToDir, command.Topic))
+	f, err := createOrAppendFile(pathToFile)
+	w := bufio.NewWriter(f)
+	size, err := fmt.Fprintln(w, command.Key.String()+":"+command.Text)
+	//size, err := w.WriteString(command.Key.String() + ":" + command.Text + "\n")
 	if err != nil {
 		fmt.Println("Persistance: Write to file failed.", size, err.Error())
 		log.Fatal(err)
 	}
 	w.Flush()
+
 	return err
 }
 
 func (fm *fileManager) Update(command Command) error {
 	mutex.Lock()
 	defer mutex.Unlock()
-	fileHandle, _ := os.OpenFile(fm.file.Name(), os.O_RDWR, 0777)
+	pathToFile := path.Clean(path.Join(fm.pathToDir, command.Topic))
+	fileHandle, _ := os.OpenFile(pathToFile, os.O_RDWR, 0777)
 	defer fileHandle.Close()
 	scanner := bufio.NewScanner(fileHandle)
 	splitFunc := newSplitFunc()
@@ -65,47 +72,46 @@ func (fm *fileManager) Update(command Command) error {
 		oldBytesText := scanner.Bytes()
 		text := string(oldBytesText)
 		if strings.Contains(text, command.Key.String()) {
-			newText := command.Key.String() + ":" + command.Text+"\n"
+			newText := command.Key.String() + ":" + command.Text + "\n"
 			newBytesText := []byte(newText)
 			diff := len(oldBytesText) - len(newBytesText)
 			// fits the message size - performs replacement
 			if diff >= 0 {
 				var additional string
-				for i:=0; i<=diff; i++ {
+				for i := 0; i <= diff; i++ {
 					additional += " "
 				}
-				newBytesText = []byte(command.Key.String() + ":" + command.Text+additional+"\n")
+				newBytesText = []byte(command.Key.String() + ":" + command.Text + additional + "\n")
 				newBytesText = bytes.Replace(oldBytesText, oldBytesText, newBytesText, -1)
 				fileHandle.Seek(0, 0)
 				n, err := fileHandle.WriteAt(newBytesText, pos-int64(len(oldBytesText)))
-				if err != nil{
-					fmt.Println("Update failed. Writen bytes: ",n)
+				if err != nil {
+					fmt.Println("Update failed. Writen bytes: ", n)
 					fmt.Println(err)
 					return err
 				}
 			} else {
 				// new message larger than old one - delete and append
 				var emptyLine string
-				for i:=0; i<len(oldBytesText); i++ {
+				for i := 0; i < len(oldBytesText); i++ {
 					emptyLine += " "
 				}
 				emptyLineBytes := []byte(emptyLine)
 				fileHandle.Seek(0, 0)
 				n, errDelete := fileHandle.WriteAt(emptyLineBytes, pos-int64(len(oldBytesText)))
-				if errDelete != nil{
-					fmt.Println("Update failed. Writen bytes: ",n)
+				if errDelete != nil {
+					fmt.Println("Update failed. Writen bytes: ", n)
 					fmt.Println(errDelete)
 					return errDelete
 				}
 				fileHandle.Seek(0, 2) //EOF
 				n, errAppend := fileHandle.WriteString(newText)
-				if errAppend != nil{
-					fmt.Println("Update failed. Writen bytes: ",n)
+				if errAppend != nil {
+					fmt.Println("Update failed. Writen bytes: ", n)
 					fmt.Println(errAppend)
 					return errAppend
 				}
 			}
-
 
 			return nil
 		}
@@ -115,7 +121,8 @@ func (fm *fileManager) Update(command Command) error {
 }
 
 func (fm *fileManager) Read(query Query) (string, error) {
-	fileHandle, _ := os.Open(fm.file.Name())
+	pathToFile := path.Clean(path.Join(fm.pathToDir, query.Topic))
+	fileHandle, _ := os.Open(pathToFile)
 	defer fileHandle.Close()
 	scanner := bufio.NewScanner(fileHandle)
 	for scanner.Scan() {
@@ -131,8 +138,9 @@ func (fm *fileManager) Read(query Query) (string, error) {
 	return "", err
 }
 
-func (fm *fileManager) ReadFile() ([]byte, error) {
-	byteArray, err := ioutil.ReadFile(fm.file.Name())
+func (fm *fileManager) ReadFile(topic string) ([]byte, error) {
+	pathToFile := path.Clean(path.Join(fm.pathToDir, topic))
+	byteArray, err := ioutil.ReadFile(pathToFile)
 	if err != nil {
 		if err != nil {
 			fmt.Println("Persistance: Can not create a file.", err.Error())
@@ -142,15 +150,15 @@ func (fm *fileManager) ReadFile() ([]byte, error) {
 	return byteArray, err
 }
 
-// Close file stream
-func (fm *fileManager) Close() error{
-	err := fm.file.Close()
-	if err != nil {
-		log.Fatal(err)
-		return err
-	}
-	return err
-}
+// // Close file stream
+// func (fm *fileManager) Close() error {
+// 	err := fm.file.Close()
+// 	if err != nil {
+// 		log.Fatal(err)
+// 		return err
+// 	}
+// 	return err
+// }
 
 func newSplitFunc() bufio.SplitFunc {
 	var n int64
@@ -164,4 +172,22 @@ func newSplitFunc() bufio.SplitFunc {
 		n += int64(advance)
 		return
 	}
+}
+
+func createOrAppendFile(pathToFile string) (*os.File, error) {
+	_, err := os.Stat(pathToFile)
+	if os.IsNotExist(err) {
+		f, err := os.Create(pathToFile)
+		if err != nil {
+			fmt.Println("Persistance: Can not create a file.", err.Error())
+			log.Fatal(err)
+		}
+		return f, err
+	}
+	f, err := os.OpenFile(pathToFile, os.O_APPEND, 0777)
+	if err != nil {
+		fmt.Println("Persistance: Can not open a file.", err.Error())
+		log.Fatal(err)
+	}
+	return f, err
 }

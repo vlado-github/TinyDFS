@@ -1,14 +1,18 @@
 package messaging
 
 import (
-	"testing"
 	"os"
+	"persistance"
 	"runtime"
+	"testing"
+
 	"github.com/google/uuid"
 )
 
+var defaultTestPath = "C://go_testing//"
+
 var queueConnParams = ConnParams{
-	"localhost","3333","tcp",
+	"localhost", "3333", "tcp",
 }
 
 func init() {
@@ -24,7 +28,9 @@ func TestMain(m *testing.M) {
 }
 
 func TestConnectingToQueue(t *testing.T) {
-	var node = NewNode(queueConnParams)
+	var guid = uuid.New().String()
+	var fm = persistance.NewFileManager(defaultTestPath+guid, "test")
+	var node = NewNode(queueConnParams, fm)
 	err := node.Run()
 	if err != nil {
 		t.Fail()
@@ -32,17 +38,21 @@ func TestConnectingToQueue(t *testing.T) {
 }
 
 func TestSendingToQueue(t *testing.T) {
-	var node = NewNode(queueConnParams)
+	var guid = uuid.New().String()
+	var fm = persistance.NewFileManager(defaultTestPath+guid, "test")
+	var node = NewNode(queueConnParams, fm)
 	err := node.Run()
 	if err != nil {
 		t.Fail()
 	}
-	var message = Message{Key:uuid.New(), Topic:"Test", Text:"Hello world!"}
+	var message = Message{Key: uuid.New(), Topic: "Test", Text: "Hello world!"}
 	node.SendMessage(message)
 }
 
 func TestCloseNode(t *testing.T) {
-	var node = NewNode(queueConnParams)
+	var guid = uuid.New().String()
+	var fm = persistance.NewFileManager(defaultTestPath+guid, "test")
+	var node = NewNode(queueConnParams, fm)
 	err := node.Run()
 	if err != nil {
 		t.Fail()

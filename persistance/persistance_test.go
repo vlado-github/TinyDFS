@@ -1,13 +1,14 @@
 package persistance
 
 import (
-	"testing"
-	"github.com/google/uuid"
+	"fmt"
 	"os"
 	"path"
 	"path/filepath"
-	"fmt"
 	"strings"
+	"testing"
+
+	"github.com/google/uuid"
 )
 
 var pathToDir string
@@ -28,8 +29,9 @@ func TestMain(m *testing.M) {
 
 func TestFileManager_Write(t *testing.T) {
 	cmd := Command{
-		Key: uuid.New(),
-		Text: "This is testing message for persistance: writing.",
+		Key:   uuid.New(),
+		Text:  "This is testing message for persistance: writing.",
+		Topic: topic,
 	}
 	err := fm.Write(cmd)
 	if err != nil {
@@ -40,16 +42,19 @@ func TestFileManager_Write(t *testing.T) {
 func TestFileManager_UpdateShort(t *testing.T) {
 	keyForUpdate := uuid.New()
 	cmd01 := Command{
-		Key: uuid.New(),
-		Text: "This is testing message for persistance: updatingShort01.",
+		Key:   uuid.New(),
+		Text:  "This is testing message for persistance: updatingShort01.",
+		Topic: topic,
 	}
 	cmd02 := Command{
-		Key: keyForUpdate,
-		Text: "This is testing message for persistance: updatingShort02.",
+		Key:   keyForUpdate,
+		Text:  "This is testing message for persistance: updatingShort02.",
+		Topic: topic,
 	}
 	cmd03 := Command{
-		Key: uuid.New(),
-		Text: "This is testing message for persistance: updatingShort03.",
+		Key:   uuid.New(),
+		Text:  "This is testing message for persistance: updatingShort03.",
+		Topic: topic,
 	}
 	err01 := fm.Write(cmd01)
 	err02 := fm.Write(cmd02)
@@ -58,8 +63,9 @@ func TestFileManager_UpdateShort(t *testing.T) {
 		t.Fail()
 	}
 	updateCmd := Command{
-		Key: keyForUpdate,
-		Text: "Text is changed.",
+		Key:   keyForUpdate,
+		Text:  "Text is changed.",
+		Topic: topic,
 	}
 	err := fm.Update(updateCmd)
 	if err != nil {
@@ -67,7 +73,8 @@ func TestFileManager_UpdateShort(t *testing.T) {
 	}
 
 	query := Query{
-		Key: keyForUpdate,
+		Key:   keyForUpdate,
+		Topic: topic,
 	}
 	data, err := fm.Read(query)
 	fmt.Println(data)
@@ -83,16 +90,19 @@ func TestFileManager_UpdateShort(t *testing.T) {
 func TestFileManager_UpdateLong(t *testing.T) {
 	keyForUpdate := uuid.New()
 	cmd01 := Command{
-		Key: uuid.New(),
-		Text: "This is testing message for persistance: updating01.",
+		Key:   uuid.New(),
+		Text:  "This is testing message for persistance: updating01.",
+		Topic: topic,
 	}
 	cmd02 := Command{
-		Key: keyForUpdate,
-		Text: "This is testing message for persistance: updating02.",
+		Key:   keyForUpdate,
+		Text:  "This is testing message for persistance: updating02.",
+		Topic: topic,
 	}
 	cmd03 := Command{
-		Key: uuid.New(),
-		Text: "This is testing message for persistance: updating03.",
+		Key:   uuid.New(),
+		Text:  "This is testing message for persistance: updating03.",
+		Topic: topic,
 	}
 	err01 := fm.Write(cmd01)
 	err02 := fm.Write(cmd02)
@@ -101,8 +111,9 @@ func TestFileManager_UpdateLong(t *testing.T) {
 		t.Fail()
 	}
 	updateCmd := Command{
-		Key: keyForUpdate,
-		Text: "Message is changed with this new content. Blah blah blah blah blah blah blah blah blah blah blah blah",
+		Key:   keyForUpdate,
+		Text:  "Message is changed with this new content. Blah blah blah blah blah blah blah blah blah blah blah blah",
+		Topic: topic,
 	}
 	err := fm.Update(updateCmd)
 	if err != nil {
@@ -110,7 +121,8 @@ func TestFileManager_UpdateLong(t *testing.T) {
 	}
 
 	query := Query{
-		Key: keyForUpdate,
+		Key:   keyForUpdate,
+		Topic: topic,
 	}
 	data, err := fm.Read(query)
 	if err != nil {
@@ -124,15 +136,17 @@ func TestFileManager_UpdateLong(t *testing.T) {
 func TestFileManager_Read(t *testing.T) {
 	key := uuid.New()
 	cmd := Command{
-		Key: key,
-		Text: "This is testing message for persistance: read line.",
+		Key:   key,
+		Text:  "This is testing message for persistance: read line.",
+		Topic: topic,
 	}
 	err := fm.Write(cmd)
 	if err != nil {
 		t.Fail()
 	}
 	query := Query{
-		Key: key,
+		Key:   key,
+		Topic: cmd.Topic,
 	}
 	data, err := fm.Read(query)
 	if err != nil {
@@ -146,30 +160,36 @@ func TestFileManager_Read(t *testing.T) {
 func TestFileManager_ReadFile(t *testing.T) {
 	key := uuid.New()
 	cmd := Command{
-		Key: key,
-		Text: "This is testing message for persistance: read file.",
+		Key:   key,
+		Text:  "This is testing message for persistance: read file.",
+		Topic: topic,
 	}
 	err := fm.Write(cmd)
 	if err != nil {
 		t.Fail()
 	}
-	data, err := fm.ReadFile()
+	data, err := fm.ReadFile(cmd.Topic)
 	if len(data) <= 0 {
 		t.Fail()
 	}
 }
 
-func setUp(){
+func setUp() {
+	pathToDir = "C://go_testing//"
 	path, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
 		fmt.Println("Path of working directory not found.")
+	} else {
+		pathToDir = path
 	}
-	pathToDir = "D:\\"//+" "+path
 	fmt.Println(path)
-	fm = NewFileManager(pathToDir, topic)
+	fm = NewFileManager(pathToDir)
 }
 
-func cleanUp(){
-	fm.Close()
-	os.Remove(path.Join(pathToDir, topic))
+func cleanUp() {
+	pathForDelete := path.Clean(path.Join(pathToDir, topic))
+	err := os.Remove(pathForDelete)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
 }
