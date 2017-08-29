@@ -47,15 +47,14 @@ func (fm *fileManager) Write(command Command) error {
 	defer mutex.Unlock()
 	pathToFile := path.Clean(path.Join(fm.pathToDir, command.Topic))
 	f, err := createOrAppendFile(pathToFile)
+	defer f.Close()
 	w := bufio.NewWriter(f)
 	size, err := fmt.Fprintln(w, command.Key.String()+":"+command.Text)
-	//size, err := w.WriteString(command.Key.String() + ":" + command.Text + "\n")
 	if err != nil {
 		fmt.Println("Persistance: Write to file failed.", size, err.Error())
 		log.Fatal(err)
 	}
 	w.Flush()
-
 	return err
 }
 
@@ -150,16 +149,6 @@ func (fm *fileManager) ReadFile(topic string) ([]byte, error) {
 	return byteArray, err
 }
 
-// // Close file stream
-// func (fm *fileManager) Close() error {
-// 	err := fm.file.Close()
-// 	if err != nil {
-// 		log.Fatal(err)
-// 		return err
-// 	}
-// 	return err
-// }
-
 func newSplitFunc() bufio.SplitFunc {
 	var n int64
 	return func(data []byte, atEOF bool) (advance int, token []byte, err error) {
@@ -184,10 +173,11 @@ func createOrAppendFile(pathToFile string) (*os.File, error) {
 		}
 		return f, err
 	}
-	f, err := os.OpenFile(pathToFile, os.O_APPEND, 0777)
+	f, err := os.OpenFile(pathToFile, os.O_RDWR|os.O_APPEND, 0660)
 	if err != nil {
 		fmt.Println("Persistance: Can not open a file.", err.Error())
 		log.Fatal(err)
 	}
+
 	return f, err
 }

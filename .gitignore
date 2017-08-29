@@ -1,6 +1,10 @@
 
 # Created by https://www.gitignore.io/api/go,visualstudiocode
 
+### Project Runtime Files ###
+TinyDFS/node_app/node_app
+TinyDFS/queue_app/queue_app
+
 ### Go ###
 # Compiled Object files, Static and Dynamic libs (Shared Objects)
 *.o
@@ -27,6 +31,7 @@ _cgo_gotypes.go
 _cgo_export.*
 
 _testmain.go
+debug
 
 *.exe
 *.test
