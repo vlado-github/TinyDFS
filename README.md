@@ -13,6 +13,18 @@ Building a simple distributed file system from ground up.
 
 This project needs to provide evaluation results in terms of performance improvement due to caching as well as the improved fault tolerance due to multi-node caching.
 
+## Run
+
+Follow these steps:
+- clone or extract downloaded archive
+- run terminal
+- position to TinyDFS/node_app
+- run "go build" command
+- run "./node_app master"
+
+- run another terminal (same steps)
+- but run "./node_app" instead (omit 'master' argument)
+
 ## Ideas for ToDo
 
 - handling connections closing

@@ -1,30 +1,31 @@
 package messaging
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
 	"net"
 	"os"
-	"log"
-	"github.com/google/uuid"
 	"sync"
-	"encoding/json"
+
+	"github.com/google/uuid"
 )
 
-type MessageQueue interface{
+type MessageQueue interface {
 	Run()
 	Status()
 }
 
 type messagequeue struct {
-	connParams ConnParams
-	pool Pool
+	connParams    ConnParams
+	pool          Pool
 	messageBuffer map[string]Message
 }
 
 var mutex = &sync.Mutex{}
 
 // Creates new instance of the message queue
-func NewQueue(conn ConnParams) MessageQueue{
+func NewQueue(conn ConnParams) MessageQueue {
 	return &messagequeue{
 		connParams: conn,
 	}
@@ -38,7 +39,7 @@ func (queue *messagequeue) init() {
 
 // Starts the queue and listens for incoming connections
 func (queue *messagequeue) Run() {
-	queue.init();
+	queue.init()
 
 	l, err := net.Listen(queue.connParams.Protocol, queue.connParams.Ip+":"+queue.connParams.Port)
 	if err != nil {
@@ -62,7 +63,7 @@ func (queue *messagequeue) Run() {
 		}
 		fmt.Println("[Queue] Client Connected...")
 
-		var message = Message{Key:uuid.New(), Topic:"CONN_ACK", Text:"CONN_ACK"}
+		var message = Message{Key: uuid.New(), Topic: "CONN_ACK", Text: "CONN_ACK"}
 		encoder := json.NewEncoder(conn)
 		encodeMessage(&message, encoder)
 
@@ -94,15 +95,15 @@ func (queue *messagequeue) receiveMessage(conn net.Conn, poolKey string) {
 }
 
 // Sends messages from buffer to all clients
-func (queue *messagequeue) sendingMessages(){
+func (queue *messagequeue) sendingMessages() {
 	for {
 		mutex.Lock()
-		for index,message := range queue.messageBuffer {
-			for _,conn := range queue.pool.conns {
+		for index, message := range queue.messageBuffer {
+			for _, conn := range queue.pool.conns {
 				if conn != nil {
 					encoder := json.NewEncoder(conn)
 					encodeMessage(&message, encoder)
-					fmt.Print("[Queue] Sending: ", message.Text + "\n")
+					fmt.Print("[Queue] Sending: ", message.Text+"\n")
 				}
 			}
 			delete(queue.messageBuffer, index)
@@ -111,7 +112,6 @@ func (queue *messagequeue) sendingMessages(){
 	}
 }
 
-func (queue *messagequeue) Status(){
-	fmt.Println("[Queue] Total connections:",len(queue.pool.conns))
+func (queue *messagequeue) Status() {
+	fmt.Println("[Queue] Total connections:", len(queue.pool.conns))
 }
-

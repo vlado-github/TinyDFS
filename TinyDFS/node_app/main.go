@@ -5,24 +5,34 @@ import (
 	"fmt"
 	"messaging"
 	"os"
-	"path/filepath"
-	"persistance"
 	"strings"
+
+	"strconv"
 
 	"github.com/google/uuid"
 )
 
 func main() {
+	// if console run follows argument "master"
+	var isMaster = false
+	if len(os.Args) > 1 {
+		arg := os.Args[1]
+		if arg == "master" {
+			isMaster = true
+		}
+	}
+
 	printWelcome()
+
 	var connParams = messaging.ConnParams{
 		Ip:       "localhost",
 		Port:     "3333",
 		Protocol: "tcp",
 	}
-	var guid = uuid.New().String()
-	var fm = persistance.NewFileManager(getCurrentDirectory() + "//" + guid)
-	var node = messaging.NewNode(connParams, fm)
+	var node = messaging.NewNode(connParams, isMaster)
 	node.Run()
+
+	printInfo(node)
 	for {
 		reader := bufio.NewReader(os.Stdin)
 		fmt.Print("Enter topic#text:")
@@ -41,18 +51,15 @@ func printWelcome() {
 	fmt.Println("*********************")
 	fmt.Println("Welcome to TinyDFS")
 	fmt.Println("*********************")
-	//	fmt.Println("\n")
-	fmt.Println("Node started!")
-	//	fmt.Println("\n")
+
 }
 
-func getCurrentDirectory() string {
-	var pathToDir = "C://tinydfs_storage//"
-	path, err := filepath.Abs(filepath.Dir(os.Args[0]))
-	if err != nil {
-		fmt.Println("Path of working directory not found.")
-	} else {
-		pathToDir = path
+func printInfo(n messaging.Node) {
+	fmt.Println(">>> ID: " + n.GetID().String())
+	fmt.Println(">>> Election ID: " + strconv.Itoa(n.GetElectionID()))
+	ip, err := n.GetIP()
+	if err == nil {
+		fmt.Println(">>> IP Address: " + ip)
 	}
-	return pathToDir
+	fmt.Println("Node started!")
 }
