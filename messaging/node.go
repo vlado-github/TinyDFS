@@ -139,6 +139,10 @@ func (n *node) CloseConn() error {
 		log.Fatal(err)
 		return err
 	}
+	if n.queue != nil {
+		err := n.queue.Close()
+		return err
+	}
 	fmt.Println("[Client] Connection closed.")
 	return err
 }

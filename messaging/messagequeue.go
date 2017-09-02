@@ -14,6 +14,7 @@ import (
 type MessageQueue interface {
 	Run()
 	Status()
+	Close() error
 }
 
 type messagequeue struct {
@@ -114,4 +115,14 @@ func (queue *messagequeue) sendingMessages() {
 
 func (queue *messagequeue) Status() {
 	fmt.Println("[Queue] Total connections:", len(queue.pool.conns))
+}
+
+func (queue *messagequeue) Close() error {
+	for _, conn := range queue.pool.conns {
+		if conn != nil {
+			err := conn.Close()
+			return err
+		}
+	}
+	return nil
 }
