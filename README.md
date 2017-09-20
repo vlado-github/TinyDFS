@@ -18,6 +18,7 @@ This project needs to provide evaluation results in terms of performance improve
 Follow these steps:
 - clone or extract downloaded archive
 - run terminal
+- run: go get github.com/google/uuid
 - position to TinyDFS/node_app
 - run "go build" command
 - run "./node_app master"
