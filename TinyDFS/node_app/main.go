@@ -48,10 +48,10 @@ func main() {
 }
 
 func printWelcome() {
-	fmt.Println("*********************")
-	fmt.Println("Welcome to TinyDFS")
-	fmt.Println("*********************")
-
+	fmt.Println("	**************************	")
+	fmt.Println("	*** Welcome to TinyDFS ***	")
+	fmt.Println("	**************************	")
+	fmt.Println("")
 }
 
 func printInfo(n messaging.Node) {

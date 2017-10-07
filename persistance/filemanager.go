@@ -49,7 +49,7 @@ func (fm *fileManager) Write(command Command) error {
 	f, err := createOrAppendFile(pathToFile)
 	defer f.Close()
 	w := bufio.NewWriter(f)
-	size, err := fmt.Fprintln(w, command.Key.String()+":"+command.Text)
+	size, err := fmt.Fprint(w, command.Key.String()+":"+command.Text)
 	if err != nil {
 		fmt.Println("Persistance: Write to file failed.", size, err.Error())
 		log.Fatal(err)
