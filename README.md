@@ -14,18 +14,25 @@ Building a simple distributed database from ground up.
 
 This project needs to provide evaluation results in terms of performance improvement due to storing data as well as the improved fault tolerance due to multi-node system.
 
-## Run
+## Build
 
 Follow these steps:
 - clone or extract downloaded archive
 - run terminal
 - run: go get github.com/google/uuid
-- position to TinyDFS/node_app
+- position to tinydfs dir
 - run "go build" command
-- run "./node_app master"
 
-- run another terminal (same steps)
-- but run "./node_app" instead (omit 'master' argument)
+## Run
+
+Follow these steps:
+- position to tinydfs dir
+- run "./tinydfs master"
+- open another terminal
+- run "./tinydfs" (note: omit 'master' argument)
+
+## Tests
+
 
 ## Ideas for ToDo
 
