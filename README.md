@@ -19,20 +19,39 @@ This project needs to provide evaluation results in terms of performance improve
 Follow these steps:
 - clone or extract downloaded archive
 - run terminal
-- run: go get github.com/google/uuid
-- position to tinydfs dir
-- run "go build" command
+- run command
+```bash
+go get github.com/google/uuid
+```
+- position to **tinydfs** directory
+- run command
+```bash
+go build
+```
 
 ## Run
 
 Follow these steps:
-- position to tinydfs dir
-- run "./tinydfs master"
+- position to **tinydfs** directory
+- run command
+```bash
+./tinydfs master
+```
 - open another terminal
-- run "./tinydfs" (note: omit 'master' argument)
+- run command (note: omit 'master' argument)
+```bash
+./tinydfs
+```
 
 ## Tests
 
+Follow these steps:
+- position to **messaging** directory
+- or position to **persistance** directory
+- and run command:
+```bash
+go test -v
+```
 
 ## Ideas for ToDo
 
