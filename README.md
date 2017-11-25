@@ -32,13 +32,11 @@ go build
 ## Run
 
 Follow these steps:
-- position to **tinydfs** directory
-- run command
+- open terminal and from **tinydfs** directory run command
 ```bash
 ./tinydfs master
 ```
-- open another terminal
-- run command (note: omit 'master' argument)
+- and connect other nodes to master by running command from another terminal
 ```bash
 ./tinydfs
 ```
