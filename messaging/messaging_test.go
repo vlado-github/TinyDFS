@@ -52,8 +52,8 @@ func TestCloseNode(t *testing.T) {
 	if err != nil {
 		t.Fail()
 	}
-	close_err := node.CloseConn()
-	if close_err != nil {
+	closeerr := node.CloseConn()
+	if closeerr != nil {
 		t.Fail()
 	}
 }

@@ -13,6 +13,8 @@ import (
 	"github.com/google/uuid"
 )
 
+// Node is a single unit of distributed storage,
+// that communicates via the master node (i.e. queue).
 type Node interface {
 	Run() error
 	SendMessage(message Message)
@@ -33,7 +35,7 @@ type node struct {
 	queue       MessageQueue
 }
 
-// Creates new instance of node
+// NewNode creates new instance of node
 func NewNode(conn ConnParams, master bool) Node {
 	rand.Seed(time.Now().Unix())
 	uniqueID := uuid.New()
@@ -143,6 +145,10 @@ func (n *node) CloseConn() error {
 		err := n.queue.Close()
 		return err
 	}
-	fmt.Println("[Client] Connection closed.")
+	n.onNodeClosed()
 	return err
+}
+
+func (n *node) onNodeClosed() {
+	fmt.Println("[Client] Connection closed.")
 }

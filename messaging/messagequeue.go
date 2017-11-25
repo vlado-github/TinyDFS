@@ -11,6 +11,8 @@ import (
 	"github.com/google/uuid"
 )
 
+// MessageQueue is a buffer that receives and broadcasts messages
+// between distributed nodes.
 type MessageQueue interface {
 	Run()
 	Status()
@@ -25,7 +27,7 @@ type messagequeue struct {
 
 var mutex = &sync.Mutex{}
 
-// Creates new instance of the message queue
+// NewQueue creates new instance of the message queue
 func NewQueue(conn ConnParams) MessageQueue {
 	return &messagequeue{
 		connParams: conn,
