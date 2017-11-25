@@ -17,12 +17,16 @@ type MessageQueue interface {
 	Run()
 	Status()
 	Close() error
+
+	RegisterHandler(HandlerType, MsgQueueHandlerFunc)
 }
 
 type messagequeue struct {
-	connParams    ConnParams
-	pool          Pool
-	messageBuffer map[string]Message
+	connParams                    ConnParams
+	pool                          Pool
+	messageBuffer                 map[string]Message
+	onNodeConnectionOpenedHandler MsgQueueHandlerFunc
+	onNodeConnectionClosedHandler MsgQueueHandlerFunc
 }
 
 var mutex = &sync.Mutex{}
@@ -30,7 +34,9 @@ var mutex = &sync.Mutex{}
 // NewQueue creates new instance of the message queue
 func NewQueue(conn ConnParams) MessageQueue {
 	return &messagequeue{
-		connParams: conn,
+		connParams:                    conn,
+		onNodeConnectionOpenedHandler: NewMsgQueueHandlerFunc(),
+		onNodeConnectionClosedHandler: NewMsgQueueHandlerFunc(),
 	}
 }
 
@@ -61,10 +67,11 @@ func (queue *messagequeue) Run() {
 		queue.Status()
 		if err != nil {
 			fmt.Println("[Queue] Error accepting: ", err.Error())
+			queue.onNodeConnectionClosedHandler(queue)
 			log.Fatal(err)
 			os.Exit(1)
 		}
-		fmt.Println("[Queue] Client Connected...")
+		queue.onNewConnection()
 
 		var message = Message{Key: uuid.New(), Topic: "CONN_ACK", Text: "CONN_ACK"}
 		encoder := json.NewEncoder(conn)
@@ -127,4 +134,28 @@ func (queue *messagequeue) Close() error {
 		}
 	}
 	return nil
+}
+
+func (queue *messagequeue) onNewConnection() {
+	fmt.Println("[Queue] Client Connected...")
+	queue.onNodeConnectionOpenedHandler(queue)
+}
+
+func (queue *messagequeue) RegisterHandler(handlerType HandlerType, handlerFunc MsgQueueHandlerFunc) {
+	switch handlerType {
+	case NODECONNOPENED:
+		{
+			queue.onNodeConnectionOpenedHandler = handlerFunc
+			break
+		}
+	case NODECONNCLOSED:
+		{
+			queue.onNodeConnectionClosedHandler = handlerFunc
+			break
+		}
+	default:
+		{
+			break
+		}
+	}
 }

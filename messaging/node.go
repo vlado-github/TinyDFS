@@ -23,16 +23,19 @@ type Node interface {
 	GetID() uuid.UUID
 	GetElectionID() int
 	GetIP() (string, error)
+
+	RegisterHandler(HandlerType, NodeHandlerFunc)
 }
 
 type node struct {
-	id          uuid.UUID
-	electionID  int
-	connParams  ConnParams
-	conn        net.Conn
-	fileManager persistance.FileManager
-	isMaster    bool
-	queue       MessageQueue
+	id                        uuid.UUID
+	electionID                int
+	connParams                ConnParams
+	conn                      net.Conn
+	fileManager               persistance.FileManager
+	isMaster                  bool
+	queue                     MessageQueue
+	onConnectionClosedHandler NodeHandlerFunc
 }
 
 // NewNode creates new instance of node
@@ -53,6 +56,7 @@ func NewNode(conn ConnParams, master bool) Node {
 		fileManager: fm,
 		isMaster:    master,
 		queue:       msgQueue,
+		onConnectionClosedHandler: NewHandlerFunc(),
 	}
 }
 
@@ -136,6 +140,7 @@ func (n *node) receiveMessages() {
 
 // Close connection to the master
 func (n *node) CloseConn() error {
+	n.onConnectionClosedHandler(n)
 	err := n.conn.Close()
 	if err != nil {
 		log.Fatal(err)
@@ -145,10 +150,19 @@ func (n *node) CloseConn() error {
 		err := n.queue.Close()
 		return err
 	}
-	n.onNodeClosed()
 	return err
 }
 
-func (n *node) onNodeClosed() {
-	fmt.Println("[Client] Connection closed.")
+func (n *node) RegisterHandler(handlerType HandlerType, handlerFunc NodeHandlerFunc) {
+	switch handlerType {
+	case NODECONNCLOSED:
+		{
+			n.onConnectionClosedHandler = handlerFunc
+			break
+		}
+	default:
+		{
+			break
+		}
+	}
 }

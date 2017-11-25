@@ -29,10 +29,15 @@ func main() {
 		Port:     "3333",
 		Protocol: "tcp",
 	}
-	var node = messaging.NewNode(connParams, isMaster)
-	node.Run()
+	var n = messaging.NewNode(connParams, isMaster)
+	onConnClosedCallback := func(nn messaging.Node) {
+		var message = messaging.Message{Key: uuid.New(), Topic: "ConnClose for node: " + n.GetID().String(), Text: "Goodbye!"}
+		nn.SendMessage(message)
+	}
+	n.RegisterHandler(messaging.NODECONNCLOSED, onConnClosedCallback)
+	n.Run()
 
-	printInfo(node)
+	printInfo(n)
 	for {
 		reader := bufio.NewReader(os.Stdin)
 		fmt.Print("Enter topic#text:")
@@ -42,12 +47,13 @@ func main() {
 			fmt.Println("Error: Invalid input. Hint: 'sport#We're watching a match.'")
 		} else {
 			var message = messaging.Message{Key: uuid.New(), Topic: msgArgs[0], Text: msgArgs[1]}
-			node.SendMessage(message)
+			n.SendMessage(message)
 		}
 	}
 }
 
 func printWelcome() {
+	fmt.Println("")
 	fmt.Println("	**************************	")
 	fmt.Println("	*** Welcome to TinyDFS ***	")
 	fmt.Println("	**************************	")
