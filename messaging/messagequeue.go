@@ -3,7 +3,7 @@ package messaging
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"logging"
 	"net"
 	"os"
 	"sync"
@@ -52,12 +52,12 @@ func (queue *messagequeue) Run() {
 
 	l, err := net.Listen(queue.connParams.Protocol, queue.connParams.Ip+":"+queue.connParams.Port)
 	if err != nil {
-		fmt.Println("[Queue] Error listening:", err.Error())
-		log.Fatal(err)
+		logging.AddError("[Queue] Error listening:", err.Error())
 		os.Exit(1)
 	}
 	defer l.Close()
 
+	logging.AddInfo("[Queue] Listening on " + queue.connParams.Ip + ":" + queue.connParams.Port)
 	fmt.Println("[Queue] Listening on " + queue.connParams.Ip + ":" + queue.connParams.Port)
 	for {
 		// Listen for an incoming connection.
@@ -66,9 +66,8 @@ func (queue *messagequeue) Run() {
 		queue.pool.conns[poolKey] = conn
 		queue.Status()
 		if err != nil {
-			fmt.Println("[Queue] Error accepting: ", err.Error())
+			logging.AddError("[Queue] Error accepting: ", err.Error())
 			queue.onNodeConnectionClosedHandler(queue)
-			log.Fatal(err)
 			os.Exit(1)
 		}
 		queue.onNewConnection()
@@ -89,7 +88,7 @@ func (queue *messagequeue) receiveMessage(conn net.Conn, poolKey string) {
 		var message = Message{}
 		err := decodeMessage(&message, decoder)
 		if err != nil {
-			fmt.Println("[Queue] Connection closed.")
+			logging.AddInfo("[Queue] Connection closed.")
 			conn.Close()
 			delete(queue.pool.conns, poolKey)
 			queue.Status()
@@ -99,7 +98,7 @@ func (queue *messagequeue) receiveMessage(conn net.Conn, poolKey string) {
 		mutex.Lock()
 		var key = uuid.New().String()
 		queue.messageBuffer[key] = Message{Key: message.Key, Topic: message.Topic, Text: message.Text}
-		fmt.Println("[Queue] Message Received:", queue.messageBuffer[key].Text)
+		logging.AddInfo("[Queue] Message Received:", queue.messageBuffer[key].Text)
 		mutex.Unlock()
 	}
 }
@@ -113,7 +112,7 @@ func (queue *messagequeue) sendingMessages() {
 				if conn != nil {
 					encoder := json.NewEncoder(conn)
 					encodeMessage(&message, encoder)
-					fmt.Print("[Queue] Sending: ", message.Text+"\n")
+					logging.AddInfo("[Queue] Sending: ", message.Text+"\n")
 				}
 			}
 			delete(queue.messageBuffer, index)
@@ -137,7 +136,7 @@ func (queue *messagequeue) Close() error {
 }
 
 func (queue *messagequeue) onNewConnection() {
-	fmt.Println("[Queue] Client Connected...")
+	logging.AddInfo("[Queue] Client Connected...")
 	queue.onNodeConnectionOpenedHandler(queue)
 }
 

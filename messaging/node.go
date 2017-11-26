@@ -2,8 +2,7 @@ package messaging
 
 import (
 	"encoding/json"
-	"fmt"
-	"log"
+	"logging"
 	"net"
 	"persistance"
 	"time"
@@ -75,7 +74,7 @@ func (n *node) GetIP() (string, error) {
 	ipAddress := ""
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
-		fmt.Println("Error: Get current IP address." + err.Error())
+		logging.AddError("Retrieving host's IP address failed.", err.Error())
 	}
 
 	for _, a := range addrs {
@@ -101,8 +100,7 @@ func (n *node) Run() error {
 	n.conn, err = net.Dial(n.connParams.Protocol, n.connParams.Ip+":"+n.connParams.Port)
 
 	if err != nil {
-		fmt.Println("Error dialing:", err.Error())
-		log.Fatal(err)
+		logging.AddError("Error dialing:", err.Error())
 	} else {
 		go n.receiveMessages()
 	}
@@ -111,7 +109,6 @@ func (n *node) Run() error {
 
 // Sends message to the queue
 func (n *node) SendMessage(message Message) {
-	//fmt.Print("[Client] Sending: ", message.Text+"\n")
 	encoder := json.NewEncoder(n.conn)
 	encodeMessage(&message, encoder)
 }
@@ -123,12 +120,12 @@ func (n *node) receiveMessages() {
 		var message Message
 		err := decodeMessage(&message, decoder)
 		if err != nil {
-			fmt.Println("Error: Queue connection is closed.", err.Error())
+			logging.AddError("Error: Queue connection is closed.", err.Error())
 			break
 		} else {
-			fmt.Println("[Client] Received: ", message.Topic, message.Text)
+			logging.AddInfo("[Client] Received: ", message.Topic, message.Text)
 			if message.Text == "CONN_ACK" {
-				fmt.Println("[Client] Connected")
+				logging.AddInfo("[Client] Connected")
 			} else {
 				var guid = uuid.New()
 				var cmd = persistance.Command{Key: guid, Text: message.Text, Topic: message.Topic}
@@ -143,11 +140,12 @@ func (n *node) CloseConn() error {
 	n.onConnectionClosedHandler(n)
 	err := n.conn.Close()
 	if err != nil {
-		log.Fatal(err)
+		logging.AddError("Close connection on node failed.", err.Error())
 		return err
 	}
 	if n.queue != nil {
 		err := n.queue.Close()
+		logging.AddError("Close message queue connection on node failed.", err.Error())
 		return err
 	}
 	return err
