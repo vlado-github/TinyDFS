@@ -16,29 +16,17 @@ This project needs to provide evaluation results in terms of performance improve
 
 ## Build
 
-Follow these steps:
-- clone or extract downloaded archive
-- run terminal
-- run command
+Run the build script within repository directory:
 ```bash
-go get github.com/google/uuid
-```
-- position to **tinydfs** directory
-- run command
-```bash
-go build
+./build.sh
 ```
 
 ## Run
 
 Follow these steps:
-- open terminal and from **tinydfs** directory run command
+- open terminal and from **bin** directory run command
 ```bash
 ./tinydfs master
-```
-- and connect other nodes to master by running command from another terminal
-```bash
-./tinydfs
 ```
 
 ## Tests
