@@ -3,6 +3,7 @@ package consensus
 // StateMachine manages the current state of node.
 type StateMachine interface {
 	GetCurrentState() State
+	SetState(newState State)
 }
 
 type statemachine struct {
@@ -18,4 +19,9 @@ func NewStateMachine() StateMachine {
 
 func (sm *statemachine) GetCurrentState() State {
 	return sm.currentState
+}
+
+func (sm *statemachine) SetState(newState State) {
+	// todo: add validation
+	sm.currentState = newState
 }

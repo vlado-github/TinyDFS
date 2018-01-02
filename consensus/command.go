@@ -8,6 +8,7 @@ type Command interface {
 	SetAck()
 	SetNAck()
 	IsAck() bool
+	GetType() CommandType
 	Validate() error
 }
 
@@ -38,6 +39,10 @@ func (cmd *command) SetNAck() {
 
 func (cmd *command) IsAck() bool {
 	return cmd.isAck
+}
+
+func (cmd *command) GetType() CommandType {
+	return cmd.cmdType
 }
 
 func (cmd *command) Validate() error {
