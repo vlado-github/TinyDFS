@@ -12,8 +12,9 @@ import (
 	"github.com/google/uuid"
 )
 
-// Node is a single unit of distributed storage,
-// that communicates via the master node (i.e. queue).
+// Node is a single unit for messaging,
+// that communicates by sending messages over master node (i.e. queue).
+// Node also saves all received and sent messages.
 type Node interface {
 	Run() error
 	SendMessage(message Message)

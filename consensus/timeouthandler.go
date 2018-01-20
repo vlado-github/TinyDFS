@@ -9,6 +9,7 @@ import (
 type TimeoutHandler interface {
 	StartElectionTime(stateMachine StateMachine)
 	ResetElectionTime(stateMachine StateMachine)
+	RegisterHandler(handlerFunc EventHandlerFunc)
 }
 
 type timeouthandler struct {

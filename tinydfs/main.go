@@ -18,45 +18,45 @@ func main() {
 	logging.SetVerbose(true)
 
 	// if console run command follows argument "master"
-	var isMaster = getArgs()
+	var isLead = getArgs()
 
 	// start a node and display info
 	printWelcome()
-	var n = startNode(isMaster)
-	printInfo(n)
+	var host = startNode(isLead)
+	printInfo(host)
 
 	// actual implementation of node usage
-	runApp(n)
+	runApp(host)
 }
 
 func getArgs() bool {
-	var isMaster = false
+	var isLead = false
 	if len(os.Args) > 1 {
 		arg := os.Args[1]
-		if arg == "master" {
-			isMaster = true
+		if arg == "leader" {
+			isLead = true
 		}
 	}
-	return isMaster
+	return isLead
 }
 
-func startNode(isMaster bool) messaging.Node {
+func startNode(isLead bool) Host {
 	var connParams = messaging.ConnParams{
 		Ip:       "localhost",
 		Port:     "3333",
 		Protocol: "tcp",
 	}
-	var n = messaging.NewNode(connParams, isMaster)
+	var host = NewHost(connParams, isLead)
 	onConnClosedCallback := func(nn messaging.Node) {
-		var message = messaging.Message{Key: uuid.New(), Topic: "ConnClose for node: " + n.GetID().String(), Text: "Goodbye!"}
+		var message = messaging.Message{Key: uuid.New(), Topic: "ConnClose for node: " + host.GetID().String(), Text: "Goodbye!"}
 		nn.SendMessage(message)
 	}
-	n.RegisterHandler(messaging.NODECONNCLOSED, onConnClosedCallback)
-	n.Run()
-	return n
+	host.RegisterNodeHandler(messaging.NODECONNCLOSED, onConnClosedCallback)
+	host.Start()
+	return host
 }
 
-func runApp(n messaging.Node) {
+func runApp(host Host) {
 	for {
 		reader := bufio.NewReader(os.Stdin)
 		fmt.Print("Enter topic#text:")
@@ -66,7 +66,7 @@ func runApp(n messaging.Node) {
 			fmt.Println("Error: Invalid input. Hint: 'sport#We're watching a match.'")
 		} else {
 			var message = messaging.Message{Key: uuid.New(), Topic: msgArgs[0], Text: msgArgs[1]}
-			n.SendMessage(message)
+			host.SendMessage(message)
 		}
 	}
 }

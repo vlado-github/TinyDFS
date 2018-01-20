@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"messaging"
 	"strconv"
 )
 
@@ -14,10 +13,10 @@ func printWelcome() {
 	fmt.Println("")
 }
 
-func printInfo(n messaging.Node) {
-	fmt.Println(">>> ID: " + n.GetID().String())
-	fmt.Println(">>> Election ID: " + strconv.Itoa(n.GetElectionID()))
-	ip, err := n.GetIP()
+func printInfo(host Host) {
+	fmt.Println(">>> ID: " + host.GetID().String())
+	fmt.Println(">>> Election ID: " + strconv.Itoa(host.GetElectionID()))
+	ip, err := host.GetIP()
 	if err == nil {
 		fmt.Println(">>> IP Address: " + ip)
 	}
