@@ -1,7 +1,7 @@
 package consensus
 
 import (
-	"math/rand"
+	"logging"
 	"time"
 )
 
@@ -25,7 +25,8 @@ func NewTimeoutHandler() TimeoutHandler {
 }
 
 func (th *timeouthandler) StartElectionTime(stateMachine StateMachine) {
-	electionTimeout := rand.Intn(ELLECTIONMAX-ELLECTIONMIN) + ELLECTIONMIN
+	electionTimeout := GetRandomElectionTimeout()
+	logging.AddInfo("[Consensus] StartElectionTime: ", electionTimeout)
 	th.timer = time.NewTimer(time.Duration(electionTimeout) * time.Millisecond)
 	<-th.timer.C
 	th.onElectionTimeout(stateMachine)

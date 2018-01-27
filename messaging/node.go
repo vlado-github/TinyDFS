@@ -56,7 +56,7 @@ func NewNode(conn ConnParams, master bool) Node {
 		fileManager: fm,
 		isMaster:    master,
 		queue:       msgQueue,
-		onConnectionClosedHandler: NewHandlerFunc(),
+		onConnectionClosedHandler: NewNodeHandlerFunc(),
 	}
 }
 
@@ -138,7 +138,7 @@ func (n *node) receiveMessages() {
 
 // Close connection to the master
 func (n *node) CloseConn() error {
-	n.onConnectionClosedHandler(n)
+	n.onConnectionClosedHandler()
 	err := n.conn.Close()
 	if err != nil {
 		logging.AddError("Close connection on node failed.", err.Error())

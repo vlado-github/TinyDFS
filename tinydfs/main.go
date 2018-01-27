@@ -22,7 +22,7 @@ func main() {
 
 	// start a node and display info
 	printWelcome()
-	var host = startNode(isLead)
+	var host = startHost(isLead)
 	printInfo(host)
 
 	// actual implementation of node usage
@@ -40,18 +40,23 @@ func getArgs() bool {
 	return isLead
 }
 
-func startNode(isLead bool) Host {
+func startHost(isLead bool) Host {
 	var connParams = messaging.ConnParams{
 		Ip:       "localhost",
 		Port:     "3333",
 		Protocol: "tcp",
 	}
 	var host = NewHost(connParams, isLead)
-	onConnClosedCallback := func(nn messaging.Node) {
+	onConnClosedCallback := func() {
 		var message = messaging.Message{Key: uuid.New(), Topic: "ConnClose for node: " + host.GetID().String(), Text: "Goodbye!"}
-		nn.SendMessage(message)
+		host.SendMessage(message)
+	}
+	onElectionTimeoutCallback := func() {
+		var message = messaging.Message{Key: uuid.New(), Topic: "LEADER_VOTE", Text: "LEADER_VOTE"}
+		host.SendMessage(message)
 	}
 	host.RegisterNodeHandler(messaging.NODECONNCLOSED, onConnClosedCallback)
+	host.RegisterTimoutHandler(onElectionTimeoutCallback)
 	host.Start()
 	return host
 }

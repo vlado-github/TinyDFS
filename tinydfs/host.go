@@ -38,6 +38,7 @@ func NewHost(connParams messaging.ConnParams, isLead bool) Host {
 
 func (h *host) Start() {
 	h.node.Run()
+	h.timeoutHandler.StartElectionTime(h.stateMachine)
 }
 
 func (h *host) GetID() uuid.UUID {
