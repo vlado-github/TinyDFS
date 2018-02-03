@@ -28,8 +28,10 @@ func (th *timeouthandler) StartElectionTime(stateMachine StateMachine) {
 	electionTimeout := GetRandomElectionTimeout()
 	logging.AddInfo("[Consensus] StartElectionTime: ", electionTimeout)
 	th.timer = time.NewTimer(time.Duration(electionTimeout) * time.Millisecond)
-	<-th.timer.C
-	th.onElectionTimeout(stateMachine)
+	go func() {
+		<-th.timer.C
+		th.onElectionTimeout(stateMachine)
+	}()
 }
 
 func (th *timeouthandler) ResetElectionTime(stateMachine StateMachine) {
