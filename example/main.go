@@ -7,6 +7,7 @@ import (
 	"messaging"
 	"os"
 	"strings"
+	"tinydfs"
 
 	"github.com/google/uuid"
 )
@@ -15,14 +16,15 @@ func main() {
 	defer close()
 
 	// verbose output of logging to console is enabled
-	logging.SetVerbose(true)
+	// log directory specified
+	logging.SetConfiguration(true, "../bin/log")
 
 	// if console run command follows argument "master"
-	var isLead = getArgs()
+	var isQueue = getArgs()
 
 	// start a node and display info
 	printWelcome()
-	var host = startHost(isLead)
+	var host = startHost(isQueue)
 	printInfo(host)
 
 	// actual implementation of node usage
@@ -30,38 +32,33 @@ func main() {
 }
 
 func getArgs() bool {
-	var isLead = false
+	var isQueue = false
 	if len(os.Args) > 1 {
 		arg := os.Args[1]
-		if arg == "leader" {
-			isLead = true
+		if arg == "queue" {
+			isQueue = true
 		}
 	}
-	return isLead
+	return isQueue
 }
 
-func startHost(isLead bool) Host {
+func startHost(isQueue bool) tinydfs.Host {
 	var connParams = messaging.ConnParams{
 		Ip:       "localhost",
 		Port:     "3333",
 		Protocol: "tcp",
 	}
-	var host = NewHost(connParams, isLead)
+	var host = tinydfs.NewHost(connParams, isQueue)
 	onConnClosedCallback := func() {
 		var message = messaging.Message{Key: uuid.New(), Topic: "ConnClose for node: " + host.GetID().String(), Text: "Goodbye!"}
 		host.SendMessage(message)
 	}
-	onElectionTimeoutCallback := func() {
-		var message = messaging.Message{Key: uuid.New(), Topic: "LEADER_VOTE", Text: "LEADER_VOTE"}
-		host.SendMessage(message)
-	}
 	host.RegisterNodeHandler(messaging.NODECONNCLOSED, onConnClosedCallback)
-	host.RegisterTimoutHandler(onElectionTimeoutCallback)
 	host.Start()
 	return host
 }
 
-func runApp(host Host) {
+func runApp(host tinydfs.Host) {
 	for {
 		reader := bufio.NewReader(os.Stdin)
 		fmt.Print("Enter topic#text:")

@@ -24,9 +24,8 @@ tinydfs_install_dependencies() {
 }
 
 tinydfs_build() {
-	cd "${SRCDIR}/tinydfs"
-	go build -o "${SRCDIR}/bin/tinydfs"
-
+	cd "${SRCDIR}/example"
+	go build -o "${SRCDIR}/bin/tinydfschat"
 	echo "TinyDFS: Build done."
 }
 

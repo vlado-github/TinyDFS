@@ -13,7 +13,7 @@ import (
 )
 
 // Node is a single unit for messaging,
-// that communicates by sending messages over master node (i.e. queue).
+// that communicates by sending messages over queue node (i.e. queue).
 // Node also saves all received and sent messages.
 type Node interface {
 	Run() error
@@ -33,19 +33,19 @@ type node struct {
 	connParams                ConnParams
 	conn                      net.Conn
 	fileManager               persistance.FileManager
-	isMaster                  bool
+	isQueue                   bool
 	queue                     MessageQueue
 	onConnectionClosedHandler NodeHandlerFunc
 }
 
 // NewNode creates new instance of node
-func NewNode(conn ConnParams, master bool) Node {
+func NewNode(conn ConnParams, isQueue bool) Node {
 	rand.Seed(time.Now().Unix())
 	uniqueID := uuid.New()
 	randomID := rand.Int()
 	fm := persistance.NewFileManager(getCurrentDirectory() + "//" + uniqueID.String())
 	var msgQueue MessageQueue
-	if master {
+	if isQueue {
 		msgQueue = NewQueue(conn)
 	}
 
@@ -54,7 +54,7 @@ func NewNode(conn ConnParams, master bool) Node {
 		electionID:  randomID,
 		connParams:  conn,
 		fileManager: fm,
-		isMaster:    master,
+		isQueue:     isQueue,
 		queue:       msgQueue,
 		onConnectionClosedHandler: NewNodeHandlerFunc(),
 	}
@@ -65,7 +65,7 @@ func (n *node) GetID() uuid.UUID {
 	return n.id
 }
 
-// Returns the Node master-election ID
+// Returns the Node leader-election ID
 func (n *node) GetElectionID() int {
 	return n.electionID
 }
@@ -89,10 +89,10 @@ func (n *node) GetIP() (string, error) {
 	return ipAddress, err
 }
 
-// If node is master than starts a queue
+// If node is queue than starts a queue
 // Runs node and connects to the queue
 func (n *node) Run() error {
-	if n.isMaster {
+	if n.isQueue {
 		go n.queue.Run()
 	}
 
@@ -136,7 +136,7 @@ func (n *node) receiveMessages() {
 	}
 }
 
-// Close connection to the master
+// Close connection to the queue
 func (n *node) CloseConn() error {
 	n.onConnectionClosedHandler()
 	err := n.conn.Close()

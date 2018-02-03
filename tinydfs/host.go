@@ -1,4 +1,4 @@
-package main
+package tinydfs
 
 import (
 	"consensus"
@@ -17,27 +17,31 @@ type Host interface {
 	GetIP() (string, error)
 	SendMessage(message messaging.Message)
 	RegisterNodeHandler(messaging.HandlerType, messaging.NodeHandlerFunc)
-	RegisterTimoutHandler(consensus.EventHandlerFunc)
 }
 
 type host struct {
 	node           messaging.Node
 	stateMachine   consensus.StateMachine
 	timeoutHandler consensus.TimeoutHandler
-	isLead         bool
+	isQueue        bool
 	connParams     messaging.ConnParams
 }
 
 // NewHost creates a new instance of host
-func NewHost(connParams messaging.ConnParams, isLead bool) Host {
-	var node = messaging.NewNode(connParams, isLead)
+func NewHost(connParams messaging.ConnParams, isQueue bool) Host {
+	var node = messaging.NewNode(connParams, isQueue)
 	var stateMachine = consensus.NewStateMachine()
 	var timeoutHandler = consensus.NewTimeoutHandler()
-	return &host{node, stateMachine, timeoutHandler, isLead, connParams}
+	return &host{node, stateMachine, timeoutHandler, isQueue, connParams}
 }
 
 func (h *host) Start() {
 	h.node.Run()
+	onElectionTimeoutCallback := func() {
+		var message = messaging.Message{Key: uuid.New(), Topic: "LEADER_VOTE", Text: "LEADER_VOTE"}
+		h.SendMessage(message)
+	}
+	h.timeoutHandler.RegisterHandler(onElectionTimeoutCallback)
 	h.timeoutHandler.StartElectionTime(h.stateMachine)
 }
 
@@ -59,8 +63,4 @@ func (h *host) SendMessage(message messaging.Message) {
 
 func (h *host) RegisterNodeHandler(handlerType messaging.HandlerType, handler messaging.NodeHandlerFunc) {
 	h.node.RegisterHandler(handlerType, handler)
-}
-
-func (h *host) RegisterTimoutHandler(handler consensus.EventHandlerFunc) {
-	h.timeoutHandler.RegisterHandler(handler)
 }

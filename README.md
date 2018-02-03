@@ -26,7 +26,7 @@ Run the build script within repository directory:
 Follow these steps:
 - open terminal and from **bin** directory run command
 ```bash
-./tinydfs master
+./tinydfschat queue
 ```
 
 ## Tests
@@ -49,6 +49,7 @@ go test -v
 - Benchmarking: writes/reads for n-nodes (LAN, web)
 
 ## Literature
+- Raft Algorithm: In Search of an Understandable Consensus Algorithm (Extended Version). Diego Ongaro and John Ousterhout. Stanford University.
 - Google File System. Sanjay Ghemawat, Howard Gobioff, Shun-Tak Leung. SOSP 2003. Student Presenter: Rita Chiu.
 - Dynamo: Amazon’s Highly Available Key-value Store. Giuseppe DeCandia, Deniz Hastorun, Madan Jampani, Gunavardhan Kakulapati, Avinash Lakshman, Alex Pilchin, Swaminathan Sivasubramanian, Peter Vosshall and Werner Vogels. SOSP 2007.
 

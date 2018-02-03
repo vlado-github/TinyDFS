@@ -35,6 +35,7 @@ func (th *timeouthandler) StartElectionTime(stateMachine StateMachine) {
 func (th *timeouthandler) ResetElectionTime(stateMachine StateMachine) {
 	th.timer.Stop()
 	th.StartElectionTime(stateMachine)
+	logging.AddInfo("[Consensus] ResetElectionTime")
 }
 
 func (th *timeouthandler) RegisterHandler(handlerFunc EventHandlerFunc) {
@@ -44,6 +45,7 @@ func (th *timeouthandler) RegisterHandler(handlerFunc EventHandlerFunc) {
 func (th *timeouthandler) onElectionTimeout(stateMachine StateMachine) {
 	// set to Candidate
 	stateMachine.SetState(CANDIDATE)
+	logging.AddInfo("[Consensus] Changes state: ", stateMachine.GetCurrentState())
 
 	// send Vote command
 	th.sendVoteOnElectionTimeout()

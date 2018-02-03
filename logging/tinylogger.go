@@ -8,7 +8,15 @@ import (
 	"sync"
 )
 
-const pathToLogDir = "../tinydfs/log"
+// Configuration represents the variables
+// used by logger
+type Configuration struct {
+	pathToLogDir string
+	verbose      bool
+}
+
+// Config contains info on logger configuration
+var config = &Configuration{verbose: false, pathToLogDir: "."}
 
 type tinylogger struct {
 	Trace   *log.Logger
@@ -20,8 +28,6 @@ type tinylogger struct {
 	InfoLogFile    *os.File
 	WarningLogFile *os.File
 	ErrorLogFile   *os.File
-
-	Verbose bool
 }
 
 var instance *tinylogger
@@ -80,9 +86,9 @@ func AddError(v ...interface{}) {
 	postLog("ERROR: ", v)
 }
 
-func SetVerbose(verbose bool) {
-	tl := getInstance()
-	tl.Verbose = verbose
+// SetConfiguration is used to setup config variables
+func SetConfiguration(isVerbose bool, pathToDir string) {
+	config = &Configuration{verbose: isVerbose, pathToLogDir: pathToDir}
 }
 
 func Close() {
@@ -94,12 +100,12 @@ func Close() {
 }
 
 func createDestinationFile(filename string) *os.File {
-	err := os.MkdirAll(pathToLogDir, os.ModePerm)
+	err := os.MkdirAll(config.pathToLogDir, os.ModePerm)
 	if err != nil {
 		fmt.Println("Persistance: Can not create a directory.", err.Error())
 		log.Fatal(err)
 	}
-	pathToFile := path.Clean(path.Join(pathToLogDir, filename))
+	pathToFile := path.Clean(path.Join(config.pathToLogDir, filename))
 	logFile, err := os.OpenFile(pathToFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		fmt.Println("error creating log file:", err)
@@ -108,8 +114,7 @@ func createDestinationFile(filename string) *os.File {
 }
 
 func postLog(v ...interface{}) {
-	tl := getInstance()
-	if tl.Verbose {
+	if config.verbose {
 		fmt.Println(v)
 	}
 }
