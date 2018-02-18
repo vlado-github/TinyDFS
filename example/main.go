@@ -3,11 +3,11 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"logging"
 	"messaging"
 	"os"
 	"strings"
 	"tinydfs"
+	"tinylogging"
 
 	"github.com/google/uuid"
 )
@@ -17,7 +17,7 @@ func main() {
 
 	// verbose output of logging to console is enabled
 	// log directory specified
-	logging.SetConfiguration(true, "../bin/log")
+	tinylogging.SetConfiguration(true, "../bin/log")
 
 	// if console run command follows argument "master"
 	var isQueue = getArgs()
@@ -48,6 +48,7 @@ func startHost(isQueue bool) tinydfs.Host {
 		Port:     "3333",
 		Protocol: "tcp",
 	}
+
 	var host = tinydfs.NewHost(connParams, isQueue)
 	onConnClosedCallback := func() {
 		var message = messaging.Message{Key: uuid.New(), Topic: "ConnClose for node: " + host.GetID().String(), Text: "Goodbye!"}
@@ -74,5 +75,5 @@ func runApp(host tinydfs.Host) {
 }
 
 func close() {
-	logging.Close()
+	tinylogging.Close()
 }

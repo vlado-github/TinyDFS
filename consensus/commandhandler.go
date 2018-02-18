@@ -1,6 +1,6 @@
 package consensus
 
-import "logging"
+import "tinylogging"
 
 // CommandHandler handles sent/received Raft commands.
 type CommandHandler interface {
@@ -36,7 +36,7 @@ func (ch *commandhandler) OnSent(cmd Command) {
 func (ch *commandhandler) OnReceived(cmd Command, stateMachine StateMachine) {
 	err := cmd.Validate()
 	if err != nil {
-		logging.AddError("Error: CommandHandler - Invalid command received.", err.Error())
+		tinylogging.AddError("Error: CommandHandler - Invalid command received.", err.Error())
 		return
 	}
 	if cmd.IsAck() {

@@ -2,10 +2,10 @@ package messaging
 
 import (
 	"encoding/json"
-	"logging"
 	"net"
 	"persistance"
 	"time"
+	"tinylogging"
 
 	"math/rand"
 
@@ -21,28 +21,27 @@ type Node interface {
 	CloseConn() error
 
 	GetID() uuid.UUID
-	GetElectionID() int
 	GetIP() (string, error)
 
 	RegisterHandler(HandlerType, NodeHandlerFunc)
+	RegisterMessageHandler(HandlerType, MessageHandlerFunc)
 }
 
 type node struct {
 	id                        uuid.UUID
-	electionID                int
 	connParams                ConnParams
 	conn                      net.Conn
 	fileManager               persistance.FileManager
 	isQueue                   bool
 	queue                     MessageQueue
 	onConnectionClosedHandler NodeHandlerFunc
+	onMessageReceivedHandler  MessageHandlerFunc
 }
 
 // NewNode creates new instance of node
 func NewNode(conn ConnParams, isQueue bool) Node {
 	rand.Seed(time.Now().Unix())
 	uniqueID := uuid.New()
-	randomID := rand.Int()
 	fm := persistance.NewFileManager(getCurrentDirectory() + "//" + uniqueID.String())
 	var msgQueue MessageQueue
 	if isQueue {
@@ -51,12 +50,12 @@ func NewNode(conn ConnParams, isQueue bool) Node {
 
 	return &node{
 		id:          uniqueID,
-		electionID:  randomID,
 		connParams:  conn,
 		fileManager: fm,
 		isQueue:     isQueue,
 		queue:       msgQueue,
 		onConnectionClosedHandler: NewNodeHandlerFunc(),
+		onMessageReceivedHandler:  NewMessageHandlerFunc(),
 	}
 }
 
@@ -65,17 +64,12 @@ func (n *node) GetID() uuid.UUID {
 	return n.id
 }
 
-// Returns the Node leader-election ID
-func (n *node) GetElectionID() int {
-	return n.electionID
-}
-
 // Return current IP address of the device
 func (n *node) GetIP() (string, error) {
 	ipAddress := ""
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
-		logging.AddError("Retrieving host's IP address failed.", err.Error())
+		tinylogging.AddError("Retrieving host's IP address failed.", err.Error())
 	}
 
 	for _, a := range addrs {
@@ -101,7 +95,7 @@ func (n *node) Run() error {
 	n.conn, err = net.Dial(n.connParams.Protocol, n.connParams.Ip+":"+n.connParams.Port)
 
 	if err != nil {
-		logging.AddError("Error dialing:", err.Error())
+		tinylogging.AddError("Error dialing:", err.Error())
 	} else {
 		go n.receiveMessages()
 	}
@@ -121,16 +115,17 @@ func (n *node) receiveMessages() {
 		var message Message
 		err := decodeMessage(&message, decoder)
 		if err != nil {
-			logging.AddError("Error: Queue connection is closed.", err.Error())
+			tinylogging.AddError("Error: Queue connection is closed.", err.Error())
 			break
 		} else {
-			logging.AddInfo("[Client] Received: ", message.Topic, message.Text)
+			tinylogging.AddInfo("[Client] Received: ", message.Topic, message.Text)
 			if message.Text == "CONN_ACK" {
-				logging.AddInfo("[Client] Connected")
+				tinylogging.AddInfo("[Client] Connected")
 			} else {
 				var guid = uuid.New()
 				var cmd = persistance.Command{Key: guid, Text: message.Text, Topic: message.Topic}
 				n.fileManager.Write(cmd)
+				n.onMessageReceivedHandler(message)
 			}
 		}
 	}
@@ -141,12 +136,12 @@ func (n *node) CloseConn() error {
 	n.onConnectionClosedHandler()
 	err := n.conn.Close()
 	if err != nil {
-		logging.AddError("Close connection on node failed.", err.Error())
+		tinylogging.AddError("Close connection on node failed.", err.Error())
 		return err
 	}
 	if n.queue != nil {
 		err := n.queue.Close()
-		logging.AddError("Close message queue connection on node failed.", err.Error())
+		tinylogging.AddError("Close message queue connection on node failed.", err.Error())
 		return err
 	}
 	return err
@@ -157,6 +152,20 @@ func (n *node) RegisterHandler(handlerType HandlerType, handlerFunc NodeHandlerF
 	case NODECONNCLOSED:
 		{
 			n.onConnectionClosedHandler = handlerFunc
+			break
+		}
+	default:
+		{
+			break
+		}
+	}
+}
+
+func (n *node) RegisterMessageHandler(handlerType HandlerType, handlerFunc MessageHandlerFunc) {
+	switch handlerType {
+	case MESSAGERECEIVED:
+		{
+			n.onMessageReceivedHandler = handlerFunc
 			break
 		}
 	default:

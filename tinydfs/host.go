@@ -2,7 +2,10 @@ package tinydfs
 
 import (
 	"consensus"
+	"fmt"
+	"math/rand"
 	"messaging"
+	"strconv"
 
 	"github.com/google/uuid"
 )
@@ -21,24 +24,70 @@ type Host interface {
 
 type host struct {
 	node           messaging.Node
+	electionID     int
 	stateMachine   consensus.StateMachine
 	timeoutHandler consensus.TimeoutHandler
 	isQueue        bool
 	connParams     messaging.ConnParams
+
+	term          int
+	voteCount     int
+	lastVotedTerm int
 }
 
 // NewHost creates a new instance of host
 func NewHost(connParams messaging.ConnParams, isQueue bool) Host {
-	var node = messaging.NewNode(connParams, isQueue)
-	var stateMachine = consensus.NewStateMachine()
-	var timeoutHandler = consensus.NewTimeoutHandler()
-	return &host{node, stateMachine, timeoutHandler, isQueue, connParams}
+	node := messaging.NewNode(connParams, isQueue)
+	stateMachine := consensus.NewStateMachine()
+	timeoutHandler := consensus.NewTimeoutHandler()
+	term := 0
+	voteCount := 0
+	electionID := rand.Int()
+	lastVotedTerm := 0
+	return &host{node, electionID, stateMachine, timeoutHandler, isQueue, connParams, term, voteCount, lastVotedTerm}
 }
 
 func (h *host) Start() {
 	h.node.Run()
+	onMessageReceivedCallback := func(message messaging.Message) {
+		term, _ := message.Payload.(int)
+		electionID := message.Payload.(string)
+
+		if message.Topic == "LEADER_VOTE" {
+			if electionID != strconv.Itoa(h.GetElectionID()) {
+				// give a vote
+				if h.lastVotedTerm != term {
+					var vote = messaging.Message{
+						Key:     uuid.New(),
+						Topic:   "LEADER_VOTE",
+						Text:    "LEADER_VOTE",
+						Payload: message.Payload,
+					}
+					h.lastVotedTerm = term
+					fmt.Println("****Give a vote: ", term, " ", electionID)
+					h.SendMessage(vote)
+				}
+			} else {
+				// receive a vote
+				h.voteCount++
+				fmt.Println("****Receive a vote: ", term, " ", electionID, " count:", h.voteCount)
+			}
+		}
+	}
+	h.node.RegisterMessageHandler(messaging.MESSAGERECEIVED, onMessageReceivedCallback)
 	onElectionTimeoutCallback := func() {
-		var message = messaging.Message{Key: uuid.New(), Topic: "LEADER_VOTE", Text: "LEADER_VOTE"}
+		h.term++
+		h.voteCount = 1
+		payload := MessagePayload{
+			Term:       h.term,
+			ElectionID: strconv.Itoa(h.GetElectionID()),
+		}
+		var message = messaging.Message{
+			Key:     uuid.New(),
+			Topic:   "LEADER_VOTE",
+			Text:    "LEADER_VOTE",
+			Payload: payload,
+		}
 		h.SendMessage(message)
 	}
 	h.timeoutHandler.RegisterHandler(onElectionTimeoutCallback)
@@ -50,7 +99,7 @@ func (h *host) GetID() uuid.UUID {
 }
 
 func (h *host) GetElectionID() int {
-	return h.node.GetElectionID()
+	return h.electionID
 }
 
 func (h *host) GetIP() (string, error) {

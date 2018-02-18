@@ -1,8 +1,8 @@
 package consensus
 
 import (
-	"logging"
 	"time"
+	"tinylogging"
 )
 
 // TimeoutHandler handles Raft timeouts.
@@ -26,7 +26,7 @@ func NewTimeoutHandler() TimeoutHandler {
 
 func (th *timeouthandler) StartElectionTime(stateMachine StateMachine) {
 	electionTimeout := GetRandomElectionTimeout()
-	logging.AddInfo("[Consensus] StartElectionTime: ", electionTimeout)
+	tinylogging.AddInfo("[Consensus] StartElectionTime: ", electionTimeout)
 	th.timer = time.NewTimer(time.Duration(electionTimeout) * time.Millisecond)
 	go func() {
 		<-th.timer.C
@@ -37,7 +37,7 @@ func (th *timeouthandler) StartElectionTime(stateMachine StateMachine) {
 func (th *timeouthandler) ResetElectionTime(stateMachine StateMachine) {
 	th.timer.Stop()
 	th.StartElectionTime(stateMachine)
-	logging.AddInfo("[Consensus] ResetElectionTime")
+	tinylogging.AddInfo("[Consensus] ResetElectionTime")
 }
 
 func (th *timeouthandler) RegisterHandler(handlerFunc EventHandlerFunc) {
@@ -47,7 +47,7 @@ func (th *timeouthandler) RegisterHandler(handlerFunc EventHandlerFunc) {
 func (th *timeouthandler) onElectionTimeout(stateMachine StateMachine) {
 	// set to Candidate
 	stateMachine.SetState(CANDIDATE)
-	logging.AddInfo("[Consensus] Changes state: ", stateMachine.GetCurrentState())
+	tinylogging.AddInfo("[Consensus] Changes state: ", stateMachine.GetCurrentState())
 
 	// send Vote command
 	th.sendVoteOnElectionTimeout()

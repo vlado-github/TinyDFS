@@ -6,11 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"logging"
 	"os"
 	"path"
 	"strings"
 	"sync"
+	"tinylogging"
 )
 
 type FileManager interface {
@@ -33,7 +33,7 @@ func NewFileManager(pathDir string) FileManager {
 	pathToDir := path.Clean(path.Join(pathDir))
 	err := os.MkdirAll(pathToDir, os.ModePerm)
 	if err != nil {
-		logging.AddError("Persistance: Can not create a directory.", err.Error())
+		tinylogging.AddError("Persistance: Can not create a directory.", err.Error())
 	}
 
 	return &fileManager{
@@ -50,7 +50,7 @@ func (fm *fileManager) Write(command Command) error {
 	w := bufio.NewWriter(f)
 	size, err := fmt.Fprint(w, command.Key.String()+":"+command.Text)
 	if err != nil {
-		logging.AddError("Persistance: Write to file failed.", size, err.Error())
+		tinylogging.AddError("Persistance: Write to file failed.", size, err.Error())
 	}
 	w.Flush()
 	return err
@@ -83,7 +83,7 @@ func (fm *fileManager) Update(command Command) error {
 				fileHandle.Seek(0, 0)
 				n, err := fileHandle.WriteAt(newBytesText, pos-int64(len(oldBytesText)))
 				if err != nil {
-					logging.AddError("Update failed. Writen bytes: ", n, err.Error())
+					tinylogging.AddError("Update failed. Writen bytes: ", n, err.Error())
 					return err
 				}
 			} else {
@@ -96,13 +96,13 @@ func (fm *fileManager) Update(command Command) error {
 				fileHandle.Seek(0, 0)
 				n, errDelete := fileHandle.WriteAt(emptyLineBytes, pos-int64(len(oldBytesText)))
 				if errDelete != nil {
-					logging.AddError("Update failed. Writen bytes: ", n, errDelete.Error())
+					tinylogging.AddError("Update failed. Writen bytes: ", n, errDelete.Error())
 					return errDelete
 				}
 				fileHandle.Seek(0, 2) //EOF
 				n, errAppend := fileHandle.WriteString(newText)
 				if errAppend != nil {
-					logging.AddError("Update failed. Writen bytes: ", n, errAppend.Error())
+					tinylogging.AddError("Update failed. Writen bytes: ", n, errAppend.Error())
 					return errAppend
 				}
 			}
@@ -111,7 +111,7 @@ func (fm *fileManager) Update(command Command) error {
 		}
 	}
 	err := errors.New("Item not found")
-	logging.AddError(err.Error())
+	tinylogging.AddError(err.Error())
 	return err
 }
 
@@ -138,7 +138,7 @@ func (fm *fileManager) ReadFile(topic string) ([]byte, error) {
 	byteArray, err := ioutil.ReadFile(pathToFile)
 	if err != nil {
 		if err != nil {
-			logging.AddError("Persistance: Can not create a file.", err.Error())
+			tinylogging.AddError("Persistance: Can not create a file.", err.Error())
 		}
 	}
 	return byteArray, err
@@ -163,13 +163,13 @@ func createOrAppendFile(pathToFile string) (*os.File, error) {
 	if os.IsNotExist(err) {
 		f, err := os.Create(pathToFile)
 		if err != nil {
-			logging.AddError("Persistance: Can not create a file.", err.Error())
+			tinylogging.AddError("Persistance: Can not create a file.", err.Error())
 		}
 		return f, err
 	}
 	f, err := os.OpenFile(pathToFile, os.O_RDWR|os.O_APPEND, 0660)
 	if err != nil {
-		logging.AddError("Persistance: Can not create a file.", err.Error())
+		tinylogging.AddError("Persistance: Can not create a file.", err.Error())
 	}
 
 	return f, err
