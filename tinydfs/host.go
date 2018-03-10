@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"messaging"
 	"strconv"
+	"tinylogging"
 
 	"github.com/google/uuid"
 )
@@ -30,9 +31,9 @@ type host struct {
 	isQueue        bool
 	connParams     messaging.ConnParams
 
-	term          int
-	voteCount     int
-	lastVotedTerm int
+	term      int
+	voteCount int
+	lastVotes map[string]int
 }
 
 // NewHost creates a new instance of host
@@ -43,54 +44,79 @@ func NewHost(connParams messaging.ConnParams, isQueue bool) Host {
 	term := 0
 	voteCount := 0
 	electionID := rand.Int()
-	lastVotedTerm := 0
-	return &host{node, electionID, stateMachine, timeoutHandler, isQueue, connParams, term, voteCount, lastVotedTerm}
+	lastVotes := make(map[string]int)
+	return &host{
+		node,
+		electionID,
+		stateMachine,
+		timeoutHandler,
+		isQueue,
+		connParams,
+		term,
+		voteCount,
+		lastVotes}
 }
 
 func (h *host) Start() {
 	h.node.Run()
 	onMessageReceivedCallback := func(message messaging.Message) {
-		term, _ := message.Payload.(int)
-		electionID := message.Payload.(string)
-
 		if message.Topic == "LEADER_VOTE" {
-			if electionID != strconv.Itoa(h.GetElectionID()) {
-				// give a vote
-				if h.lastVotedTerm != term {
-					var vote = messaging.Message{
-						Key:     uuid.New(),
-						Topic:   "LEADER_VOTE",
-						Text:    "LEADER_VOTE",
-						Payload: message.Payload,
-					}
-					h.lastVotedTerm = term
-					fmt.Println("****Give a vote: ", term, " ", electionID)
-					h.SendMessage(vote)
-				}
+			votePayload := EmptyVote()
+			err := votePayload.ToPayload(message.Payload)
+			if err != nil {
+				tinylogging.AddError("[Host] onMessageReceivedCallback ", err.Error())
 			} else {
-				// receive a vote
-				h.voteCount++
-				fmt.Println("****Receive a vote: ", term, " ", electionID, " count:", h.voteCount)
+				term := votePayload.GetTerm()
+				electionID := votePayload.GetElectionID()
+				nodeID := votePayload.GetNodeID()
+				if electionID != strconv.Itoa(h.GetElectionID()) { // not me
+					// give a vote
+					lastVotedTerm := h.lastVotes[electionID]
+					if lastVotedTerm != term {
+						newVote := NewVote(term, electionID, h.GetID().String())
+						newVotePayload, err := newVote.ToByteArray()
+						if err != nil {
+							tinylogging.AddError("[Host] onMessageReceivedCallback ", err.Error())
+						} else {
+							var voteMsg = messaging.Message{
+								Key:     uuid.New(),
+								Topic:   "LEADER_VOTE",
+								Payload: newVotePayload,
+							}
+							h.lastVotes[electionID] = term
+							fmt.Println("****Give a vote: TERM: ", term, " ElectionID: ", electionID)
+							h.SendMessage(voteMsg)
+						}
+					}
+				} else {
+					if nodeID != h.GetID().String() { // not from me
+						// receive a vote
+						h.voteCount++
+						fmt.Println("****Receive a vote: TERM: ", term, " ElectionID: ", electionID, " count:", h.voteCount)
+					}
+				}
 			}
 		}
 	}
 	h.node.RegisterMessageHandler(messaging.MESSAGERECEIVED, onMessageReceivedCallback)
-	onElectionTimeoutCallback := func() {
+	sendVoteOnElectionTimeoutCallback := func() {
 		h.term++
-		h.voteCount = 1
-		payload := MessagePayload{
-			Term:       h.term,
-			ElectionID: strconv.Itoa(h.GetElectionID()),
+		h.voteCount = 0
+		fmt.Println("****Request a vote: TERM: ", h.term, " ElectionID: ", h.electionID, " count:", h.voteCount)
+		vote := NewVote(h.term, strconv.Itoa(h.GetElectionID()), h.GetID().String())
+		payload, err := vote.ToByteArray()
+		if err != nil {
+			tinylogging.AddError("[Host] sendVoteOnElectionTimeoutCallback ", err.Error())
+		} else {
+			var voteMsg = messaging.Message{
+				Key:     uuid.New(),
+				Topic:   "LEADER_VOTE",
+				Payload: payload,
+			}
+			h.SendMessage(voteMsg)
 		}
-		var message = messaging.Message{
-			Key:     uuid.New(),
-			Topic:   "LEADER_VOTE",
-			Text:    "LEADER_VOTE",
-			Payload: payload,
-		}
-		h.SendMessage(message)
 	}
-	h.timeoutHandler.RegisterHandler(onElectionTimeoutCallback)
+	h.timeoutHandler.RegisterHandler(sendVoteOnElectionTimeoutCallback)
 	h.timeoutHandler.StartElectionTime(h.stateMachine)
 }
 

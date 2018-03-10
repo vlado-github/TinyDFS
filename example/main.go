@@ -17,9 +17,9 @@ func main() {
 
 	// verbose output of logging to console is enabled
 	// log directory specified
-	tinylogging.SetConfiguration(true, "../bin/log")
+	tinylogging.SetConfiguration(false, "../bin/log")
 
-	// if console run command follows argument "master"
+	// if console run command follows argument "queue"
 	var isQueue = getArgs()
 
 	// start a node and display info
@@ -51,7 +51,7 @@ func startHost(isQueue bool) tinydfs.Host {
 
 	var host = tinydfs.NewHost(connParams, isQueue)
 	onConnClosedCallback := func() {
-		var message = messaging.Message{Key: uuid.New(), Topic: "ConnClose for node: " + host.GetID().String(), Text: "Goodbye!"}
+		var message = messaging.Message{Key: uuid.New(), Topic: "ConnClose for node: " + host.GetID().String()}
 		host.SendMessage(message)
 	}
 	host.RegisterNodeHandler(messaging.NODECONNCLOSED, onConnClosedCallback)
@@ -68,7 +68,7 @@ func runApp(host tinydfs.Host) {
 		if len(msgArgs) != 2 {
 			fmt.Println("Error: Invalid input. Hint: 'sport#We're watching a match.'")
 		} else {
-			var message = messaging.Message{Key: uuid.New(), Topic: msgArgs[0], Text: msgArgs[1]}
+			var message = messaging.Message{Key: uuid.New(), Topic: msgArgs[0], Payload: []byte(msgArgs[1])}
 			host.SendMessage(message)
 		}
 	}

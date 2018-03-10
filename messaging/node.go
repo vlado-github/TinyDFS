@@ -118,12 +118,12 @@ func (n *node) receiveMessages() {
 			tinylogging.AddError("Error: Queue connection is closed.", err.Error())
 			break
 		} else {
-			tinylogging.AddInfo("[Client] Received: ", message.Topic, message.Text)
-			if message.Text == "CONN_ACK" {
+			tinylogging.AddInfo("[Client] Received: ", message.Topic, string(message.Payload))
+			if message.Topic == "CONN_ACK" {
 				tinylogging.AddInfo("[Client] Connected")
 			} else {
 				var guid = uuid.New()
-				var cmd = persistance.Command{Key: guid, Text: message.Text, Topic: message.Topic}
+				var cmd = persistance.Command{Key: guid, Text: string(message.Payload), Topic: message.Topic}
 				n.fileManager.Write(cmd)
 				n.onMessageReceivedHandler(message)
 			}

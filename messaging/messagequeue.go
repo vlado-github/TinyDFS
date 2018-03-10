@@ -72,7 +72,7 @@ func (queue *messagequeue) Run() {
 		}
 		queue.onNewConnection()
 
-		var message = Message{Key: uuid.New(), Topic: "CONN_ACK", Text: "CONN_ACK"}
+		var message = Message{Key: uuid.New(), Topic: "CONN_ACK"}
 		encoder := json.NewEncoder(conn)
 		encodeMessage(&message, encoder)
 
@@ -97,8 +97,8 @@ func (queue *messagequeue) receiveMessage(conn net.Conn, poolKey string) {
 
 		mutex.Lock()
 		var key = uuid.New().String()
-		queue.messageBuffer[key] = Message{Key: message.Key, Topic: message.Topic, Text: message.Text}
-		tinylogging.AddInfo("[Queue] Message Received:", queue.messageBuffer[key].Text)
+		queue.messageBuffer[key] = Message{Key: message.Key, Topic: message.Topic, Payload: message.Payload}
+		tinylogging.AddInfo("[Queue] Message Received:", string(queue.messageBuffer[key].Payload))
 		mutex.Unlock()
 	}
 }
@@ -112,7 +112,7 @@ func (queue *messagequeue) sendingMessages() {
 				if conn != nil {
 					encoder := json.NewEncoder(conn)
 					encodeMessage(&message, encoder)
-					tinylogging.AddInfo("[Queue] Sending: ", message.Text+"\n")
+					tinylogging.AddInfo("[Queue] Sending: ", string(message.Payload)+"\n")
 				}
 			}
 			delete(queue.messageBuffer, index)
