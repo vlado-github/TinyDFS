@@ -8,15 +8,27 @@ import (
 	"sync"
 )
 
+// VerbosityLevelType how many details on a console
+type VerbosityLevelType int
+
+const (
+	ALL     VerbosityLevelType = iota
+	TRACE   VerbosityLevelType = iota
+	INFO    VerbosityLevelType = iota
+	ERROR   VerbosityLevelType = iota
+	WARNING VerbosityLevelType = iota
+	NONE    VerbosityLevelType = iota
+)
+
 // Configuration represents the variables
 // used by logger
 type Configuration struct {
 	pathToLogDir string
-	verbose      bool
+	verbose      VerbosityLevelType
 }
 
 // Config contains info on logger configuration
-var config = &Configuration{verbose: false, pathToLogDir: "."}
+var config = &Configuration{verbose: ALL, pathToLogDir: "."}
 
 type tinylogger struct {
 	Trace   *log.Logger
@@ -65,30 +77,30 @@ func getInstance() *tinylogger {
 func AddTrace(v ...interface{}) {
 	tl := getInstance()
 	tl.Trace.Println(v)
-	postLog("TRACE: ", v)
+	postLog(TRACE, "TRACE: ", v)
 }
 
 func AddInfo(v ...interface{}) {
 	tl := getInstance()
 	tl.Info.Println(v)
-	postLog("INFO:", v)
+	postLog(INFO, "INFO:", v)
 }
 
 func AddWarning(v ...interface{}) {
 	tl := getInstance()
 	tl.Warning.Println(v)
-	postLog("WARN: ", v)
+	postLog(WARNING, "WARN: ", v)
 }
 
 func AddError(v ...interface{}) {
 	tl := getInstance()
 	tl.Error.Println(v)
-	postLog("ERROR: ", v)
+	postLog(ERROR, "ERROR: ", v)
 }
 
 // SetConfiguration is used to setup config variables
-func SetConfiguration(isVerbose bool, pathToDir string) {
-	config = &Configuration{verbose: isVerbose, pathToLogDir: pathToDir}
+func SetConfiguration(verboseType VerbosityLevelType, pathToDir string) {
+	config = &Configuration{verbose: verboseType, pathToLogDir: pathToDir}
 }
 
 func Close() {
@@ -113,8 +125,10 @@ func createDestinationFile(filename string) *os.File {
 	return logFile
 }
 
-func postLog(v ...interface{}) {
-	if config.verbose {
-		fmt.Println(v)
+func postLog(verbosityLevel VerbosityLevelType, logText ...interface{}) {
+	if config.verbose == ALL {
+		fmt.Println(logText)
+	} else if verbosityLevel == config.verbose || verbosityLevel == ERROR {
+		fmt.Println(logText)
 	}
 }

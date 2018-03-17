@@ -22,6 +22,7 @@ type Node interface {
 
 	GetID() uuid.UUID
 	GetIP() (string, error)
+	GetNumOfNodes() int
 
 	RegisterHandler(HandlerType, NodeHandlerFunc)
 	RegisterMessageHandler(HandlerType, MessageHandlerFunc)
@@ -83,6 +84,11 @@ func (n *node) GetIP() (string, error) {
 	return ipAddress, err
 }
 
+// Return number of connected nodes to the queue
+func (n *node) GetNumOfNodes() int {
+	return n.queue.GetNumOfNodes()
+}
+
 // If node is queue than starts a queue
 // Runs node and connects to the queue
 func (n *node) Run() error {
@@ -91,11 +97,18 @@ func (n *node) Run() error {
 	}
 
 	// connects to queue
+	numOfAttempts := 5
 	var err error
 	n.conn, err = net.Dial(n.connParams.Protocol, n.connParams.Ip+":"+n.connParams.Port)
+	numOfAttempts--
 
 	if err != nil {
-		tinylogging.AddError("Error dialing:", err.Error())
+		if numOfAttempts > 0 {
+			n.conn, err = net.Dial(n.connParams.Protocol, n.connParams.Ip+":"+n.connParams.Port)
+			numOfAttempts--
+		} else {
+			tinylogging.AddError("Error dialing:", err.Error())
+		}
 	} else {
 		go n.receiveMessages()
 	}

@@ -17,7 +17,7 @@ func main() {
 
 	// verbose output of logging to console is enabled
 	// log directory specified
-	tinylogging.SetConfiguration(false, "../bin/log")
+	tinylogging.SetConfiguration(tinylogging.TRACE, "../bin/log")
 
 	// if console run command follows argument "queue"
 	var isQueue = getArgs()

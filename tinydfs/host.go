@@ -2,11 +2,8 @@ package tinydfs
 
 import (
 	"consensus"
-	"fmt"
 	"math/rand"
 	"messaging"
-	"strconv"
-	"tinylogging"
 
 	"github.com/google/uuid"
 )
@@ -19,6 +16,8 @@ type Host interface {
 	GetID() uuid.UUID
 	GetElectionID() int
 	GetIP() (string, error)
+	GetNumOfNodes() int
+	SetNumOfNodes(numOfNodes int)
 	SendMessage(message messaging.Message)
 	RegisterNodeHandler(messaging.HandlerType, messaging.NodeHandlerFunc)
 }
@@ -31,9 +30,11 @@ type host struct {
 	isQueue        bool
 	connParams     messaging.ConnParams
 
-	term      int
-	voteCount int
-	lastVotes map[string]int
+	term          int
+	voteCount     int
+	lastVotes     map[string]int
+	lastHeartbeat uuid.UUID
+	numOfNodes    int
 }
 
 // NewHost creates a new instance of host
@@ -45,6 +46,8 @@ func NewHost(connParams messaging.ConnParams, isQueue bool) Host {
 	voteCount := 0
 	electionID := rand.Int()
 	lastVotes := make(map[string]int)
+	lastHeartbeat := uuid.New()
+	numOfNodes := 0
 	return &host{
 		node,
 		electionID,
@@ -54,69 +57,14 @@ func NewHost(connParams messaging.ConnParams, isQueue bool) Host {
 		connParams,
 		term,
 		voteCount,
-		lastVotes}
+		lastVotes,
+		lastHeartbeat,
+		numOfNodes}
 }
 
 func (h *host) Start() {
+	h.registerHandlers()
 	h.node.Run()
-	onMessageReceivedCallback := func(message messaging.Message) {
-		if message.Topic == "LEADER_VOTE" {
-			votePayload := EmptyVote()
-			err := votePayload.ToPayload(message.Payload)
-			if err != nil {
-				tinylogging.AddError("[Host] onMessageReceivedCallback ", err.Error())
-			} else {
-				term := votePayload.GetTerm()
-				electionID := votePayload.GetElectionID()
-				nodeID := votePayload.GetNodeID()
-				if electionID != strconv.Itoa(h.GetElectionID()) { // not me
-					// give a vote
-					lastVotedTerm := h.lastVotes[electionID]
-					if lastVotedTerm != term {
-						newVote := NewVote(term, electionID, h.GetID().String())
-						newVotePayload, err := newVote.ToByteArray()
-						if err != nil {
-							tinylogging.AddError("[Host] onMessageReceivedCallback ", err.Error())
-						} else {
-							var voteMsg = messaging.Message{
-								Key:     uuid.New(),
-								Topic:   "LEADER_VOTE",
-								Payload: newVotePayload,
-							}
-							h.lastVotes[electionID] = term
-							fmt.Println("****Give a vote: TERM: ", term, " ElectionID: ", electionID)
-							h.SendMessage(voteMsg)
-						}
-					}
-				} else {
-					if nodeID != h.GetID().String() { // not from me
-						// receive a vote
-						h.voteCount++
-						fmt.Println("****Receive a vote: TERM: ", term, " ElectionID: ", electionID, " count:", h.voteCount)
-					}
-				}
-			}
-		}
-	}
-	h.node.RegisterMessageHandler(messaging.MESSAGERECEIVED, onMessageReceivedCallback)
-	sendVoteOnElectionTimeoutCallback := func() {
-		h.term++
-		h.voteCount = 0
-		fmt.Println("****Request a vote: TERM: ", h.term, " ElectionID: ", h.electionID, " count:", h.voteCount)
-		vote := NewVote(h.term, strconv.Itoa(h.GetElectionID()), h.GetID().String())
-		payload, err := vote.ToByteArray()
-		if err != nil {
-			tinylogging.AddError("[Host] sendVoteOnElectionTimeoutCallback ", err.Error())
-		} else {
-			var voteMsg = messaging.Message{
-				Key:     uuid.New(),
-				Topic:   "LEADER_VOTE",
-				Payload: payload,
-			}
-			h.SendMessage(voteMsg)
-		}
-	}
-	h.timeoutHandler.RegisterHandler(sendVoteOnElectionTimeoutCallback)
 	h.timeoutHandler.StartElectionTime(h.stateMachine)
 }
 
@@ -132,10 +80,28 @@ func (h *host) GetIP() (string, error) {
 	return h.node.GetIP()
 }
 
+func (h *host) GetNumOfNodes() int {
+	if h.isQueue {
+		h.numOfNodes = h.node.GetNumOfNodes()
+	}
+	return h.numOfNodes
+}
+
+func (h *host) SetNumOfNodes(numOfNodes int) {
+	h.numOfNodes = numOfNodes
+}
+
 func (h *host) SendMessage(message messaging.Message) {
 	h.node.SendMessage(message)
 }
 
 func (h *host) RegisterNodeHandler(handlerType messaging.HandlerType, handler messaging.NodeHandlerFunc) {
 	h.node.RegisterHandler(handlerType, handler)
+}
+
+func (h *host) registerHandlers() {
+	handlersRegistry := NewHandlersRegistry(h)
+	h.node.RegisterMessageHandler(messaging.MESSAGERECEIVED, handlersRegistry.GetMessagingHandler(messaging.MESSAGERECEIVED))
+	h.timeoutHandler.RegisterHandler(consensus.ELECTIONTIMEOUT, handlersRegistry.GetTimeoutHandler(consensus.ELECTIONTIMEOUT))
+	h.timeoutHandler.RegisterHandler(consensus.HEARTBEATTIMEOUT, handlersRegistry.GetTimeoutHandler(consensus.HEARTBEATTIMEOUT))
 }

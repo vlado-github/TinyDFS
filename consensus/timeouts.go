@@ -5,6 +5,16 @@ import (
 	"time"
 )
 
+// ElectionTimeoutType enum
+type ElectionTimeoutType int
+
+const (
+	// ELECTIONTIMEOUT type
+	ELECTIONTIMEOUT ElectionTimeoutType = iota
+	// HEARTBEATTIMEOUT type
+	HEARTBEATTIMEOUT ElectionTimeoutType = iota
+)
+
 const (
 	/* production
 
@@ -20,11 +30,11 @@ const (
 	/* testing */
 
 	// ELLECTIONMIN type (in ms)
-	ELLECTIONMIN int = 15000
+	ELLECTIONMIN int = 45000
 	// ELLECTIONMAX type (in ms)
-	ELLECTIONMAX int = 30000
+	ELLECTIONMAX int = 60000
 	// HEARTBEATMAX type (in ms)
-	HEARTBEATMAX int = 5000
+	HEARTBEATMAX int = 20000
 )
 
 // GetRandomElectionTimeout returns random value for time span in ms.

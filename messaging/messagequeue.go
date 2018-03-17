@@ -16,6 +16,7 @@ import (
 type MessageQueue interface {
 	Run()
 	Status()
+	GetNumOfNodes() int
 	Close() error
 
 	RegisterHandler(HandlerType, MsgQueueHandlerFunc)
@@ -65,6 +66,7 @@ func (queue *messagequeue) Run() {
 		var poolKey = uuid.New().String()
 		queue.pool.conns[poolKey] = conn
 		queue.Status()
+
 		if err != nil {
 			tinylogging.AddError("[Queue] Error accepting: ", err.Error())
 			queue.onNodeConnectionClosedHandler(queue)
@@ -123,6 +125,10 @@ func (queue *messagequeue) sendingMessages() {
 
 func (queue *messagequeue) Status() {
 	fmt.Println("[Queue] Total connections:", len(queue.pool.conns))
+}
+
+func (queue *messagequeue) GetNumOfNodes() int {
+	return len(queue.pool.conns)
 }
 
 func (queue *messagequeue) Close() error {
