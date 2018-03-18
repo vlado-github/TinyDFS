@@ -69,7 +69,7 @@ func (queue *messagequeue) Run() {
 
 		if err != nil {
 			tinylogging.AddError("[Queue] Error accepting: ", err.Error())
-			queue.onNodeConnectionClosedHandler(queue)
+			queue.onCloseConnection(err)
 			os.Exit(1)
 		}
 		queue.onNewConnection()
@@ -80,6 +80,18 @@ func (queue *messagequeue) Run() {
 
 		go queue.receiveMessage(conn, poolKey)
 		go queue.sendingMessages()
+	}
+}
+
+// Queue creates system messages to notify other nodes about changes
+func (queue *messagequeue) addSystemMessageToQueue(topic string) {
+	var key = uuid.New()
+	var numOfNodes = queue.GetNumOfNodes()
+	payload, err := NewBaseMessagePayload(numOfNodes).ToByteArray()
+	if err != nil {
+		tinylogging.AddError("[Queue] addSystemMessageToQueue failed to create message payload for topic:", topic)
+	} else {
+		queue.messageBuffer[key.String()] = Message{Key: key, Topic: topic, Payload: payload}
 	}
 }
 
@@ -94,6 +106,7 @@ func (queue *messagequeue) receiveMessage(conn net.Conn, poolKey string) {
 			conn.Close()
 			delete(queue.pool.conns, poolKey)
 			queue.Status()
+			queue.onCloseConnection(err)
 			break
 		}
 
@@ -144,6 +157,13 @@ func (queue *messagequeue) Close() error {
 func (queue *messagequeue) onNewConnection() {
 	tinylogging.AddInfo("[Queue] Client Connected...")
 	queue.onNodeConnectionOpenedHandler(queue)
+	queue.addSystemMessageToQueue("CLIENT_CONN_OPENED")
+}
+
+func (queue *messagequeue) onCloseConnection(err error) {
+	tinylogging.AddError("[Queue] Error trace: ", err.Error())
+	queue.onNodeConnectionClosedHandler(queue)
+	queue.addSystemMessageToQueue("CLIENT_CONN_CLOSED")
 }
 
 func (queue *messagequeue) RegisterHandler(handlerType HandlerType, handlerFunc MsgQueueHandlerFunc) {

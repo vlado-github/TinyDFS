@@ -36,6 +36,16 @@ func NewHandlersRegistry(h *host) HandlersRegistry {
 				// save Heartbeat ket
 				h.lastHeartbeat = message.Key
 			}
+		} else if message.Topic == "CLIENT_CONN_OPENED" || message.Topic == "CLIENT_CONN_CLOSED" {
+			tinylogging.AddTrace(message.Topic)
+			basePayload := messaging.EmptyPayload()
+			err := basePayload.ToPayload(message.Payload)
+			if err != nil {
+				tinylogging.AddError("[Host] onMessageReceivedCallback ", err.Error())
+			} else {
+				numOfNodes := basePayload.GetNumOfNodes()
+				h.SetNumOfNodes(numOfNodes)
+			}
 		} else if message.Topic == "LEADER_VOTE" {
 			votePayload := EmptyVote()
 			err := votePayload.ToPayload(message.Payload)
@@ -46,13 +56,11 @@ func NewHandlersRegistry(h *host) HandlersRegistry {
 				term := votePayload.GetTerm()
 				electionID := votePayload.GetElectionID()
 				nodeID := votePayload.GetNodeID()
-				numOfNodes := votePayload.GetNumOfNodes()
-				h.SetNumOfNodes(numOfNodes)
 				if electionID != strconv.Itoa(h.GetElectionID()) { // not me, vote from other nodes
 					// give a vote
 					lastVotedTerm := h.lastVotes[electionID]
 					if lastVotedTerm != term {
-						newVote := NewVote(term, electionID, h.GetID().String(), numOfNodes)
+						newVote := NewVote(term, electionID, h.GetID().String())
 						newVotePayload, err := newVote.ToByteArray()
 						if err != nil {
 							tinylogging.AddError("[Host] onMessageReceivedCallback ", err.Error())
@@ -89,7 +97,7 @@ func NewHandlersRegistry(h *host) HandlersRegistry {
 		h.term++
 		h.voteCount = 0
 		tinylogging.AddTrace("****Request a vote: TERM: ", h.term, " ElectionID: ", h.electionID, " count:", h.voteCount)
-		vote := NewVote(h.term, strconv.Itoa(h.GetElectionID()), h.GetID().String(), h.GetNumOfNodes())
+		vote := NewVote(h.term, strconv.Itoa(h.GetElectionID()), h.GetID().String())
 		payload, err := vote.ToByteArray()
 		if err != nil {
 			tinylogging.AddError("[Host] sendVoteOnElectionTimeoutCallback ", err.Error())

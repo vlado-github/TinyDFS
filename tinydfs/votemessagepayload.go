@@ -13,23 +13,20 @@ type VoteMessagePayload interface {
 	GetTerm() int
 	GetElectionID() string
 	GetNodeID() string
-	GetNumOfNodes() int
 }
 
 type votemessagepayload struct {
 	Term       int    `json:"term"`
 	ElectionID string `json:"election_id"`
 	NodeID     string `json:"node_id"`
-	NumOfNodes int    `json:"num_of_nodes"`
 }
 
 // NewVote creates new instance of the message payload for vote
-func NewVote(term int, electionID string, nodeID string, numOfNodes int) VoteMessagePayload {
+func NewVote(term int, electionID string, nodeID string) VoteMessagePayload {
 	return &votemessagepayload{
 		Term:       term,
 		ElectionID: electionID,
 		NodeID:     nodeID,
-		NumOfNodes: numOfNodes,
 	}
 }
 
@@ -39,7 +36,6 @@ func EmptyVote() VoteMessagePayload {
 		Term:       -1,
 		ElectionID: "",
 		NodeID:     "",
-		NumOfNodes: -1,
 	}
 }
 
@@ -53,10 +49,6 @@ func (payload *votemessagepayload) GetElectionID() string {
 
 func (payload *votemessagepayload) GetNodeID() string {
 	return payload.NodeID
-}
-
-func (payload *votemessagepayload) GetNumOfNodes() int {
-	return payload.NumOfNodes
 }
 
 // ToByteArray converts to Json string

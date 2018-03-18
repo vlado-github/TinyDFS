@@ -1,6 +1,8 @@
 package messaging
 
-import "github.com/google/uuid"
+import (
+	"github.com/google/uuid"
+)
 
 // Message used in protocol with unique identifier
 type Message struct {

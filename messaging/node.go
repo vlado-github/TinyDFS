@@ -103,12 +103,11 @@ func (n *node) Run() error {
 	numOfAttempts--
 
 	if err != nil {
-		if numOfAttempts > 0 {
+		for numOfAttempts > 0 {
 			n.conn, err = net.Dial(n.connParams.Protocol, n.connParams.Ip+":"+n.connParams.Port)
 			numOfAttempts--
-		} else {
-			tinylogging.AddError("Error dialing:", err.Error())
 		}
+		tinylogging.AddError("Error dialing:", err.Error())
 	} else {
 		go n.receiveMessages()
 	}
