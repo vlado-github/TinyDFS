@@ -74,7 +74,7 @@ func (queue *messagequeue) Run() {
 		}
 		queue.onNewConnection()
 
-		var message = Message{Key: uuid.New(), Topic: "CONN_ACK"}
+		var message = Message{Key: uuid.New(), Topic: CONN_ACK}
 		encoder := json.NewEncoder(conn)
 		encodeMessage(&message, encoder)
 
@@ -157,13 +157,13 @@ func (queue *messagequeue) Close() error {
 func (queue *messagequeue) onNewConnection() {
 	tinylogging.AddInfo("[Queue] Client Connected...")
 	queue.onNodeConnectionOpenedHandler(queue)
-	queue.addSystemMessageToQueue("CLIENT_CONN_OPENED")
+	queue.addSystemMessageToQueue(CLIENT_CONN_OPENED)
 }
 
 func (queue *messagequeue) onCloseConnection(err error) {
 	tinylogging.AddError("[Queue] Error trace: ", err.Error())
 	queue.onNodeConnectionClosedHandler(queue)
-	queue.addSystemMessageToQueue("CLIENT_CONN_CLOSED")
+	queue.addSystemMessageToQueue(CLIENT_CONN_CLOSED)
 }
 
 func (queue *messagequeue) RegisterHandler(handlerType HandlerType, handlerFunc MsgQueueHandlerFunc) {

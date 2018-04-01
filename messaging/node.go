@@ -131,7 +131,7 @@ func (n *node) receiveMessages() {
 			break
 		} else {
 			tinylogging.AddInfo("[Client] Received: ", message.Topic, string(message.Payload))
-			if message.Topic == "CONN_ACK" {
+			if message.Topic == CONN_ACK {
 				tinylogging.AddInfo("[Client] Connected")
 			} else {
 				var guid = uuid.New()

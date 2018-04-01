@@ -34,7 +34,7 @@ const (
 	// ELLECTIONMAX type (in ms)
 	ELLECTIONMAX int = 60000
 	// HEARTBEATMAX type (in ms)
-	HEARTBEATMAX int = 20000
+	HEARTBEATMAX int = 5000
 )
 
 // GetRandomElectionTimeout returns random value for time span in ms.

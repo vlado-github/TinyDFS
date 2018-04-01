@@ -23,7 +23,7 @@ type handlersregistry struct {
 // NewHandlersRegistry creates new handlers registry.
 func NewHandlersRegistry(th *timeouthandler) HandlersRegistry {
 	onMessageReceivedFunc := func(message messaging.Message) {
-		if message.Topic == "HEARTBEAT" {
+		if message.Topic == HEARTBEAT {
 			if message.Key != th.lastHeartbeat {
 				tinylogging.AddTrace("****Receive a Heartbeat****")
 				// if leader reset heartbeat timeout
@@ -35,7 +35,7 @@ func NewHandlersRegistry(th *timeouthandler) HandlersRegistry {
 				// save Heartbeat ket
 				th.lastHeartbeat = message.Key
 			}
-		} else if message.Topic == "CLIENT_CONN_OPENED" || message.Topic == "CLIENT_CONN_CLOSED" {
+		} else if message.Topic == messaging.CLIENT_CONN_OPENED || message.Topic == messaging.CLIENT_CONN_CLOSED {
 			tinylogging.AddTrace(message.Topic)
 			basePayload := messaging.EmptyPayload()
 			err := basePayload.ToPayload(message.Payload)
@@ -45,7 +45,7 @@ func NewHandlersRegistry(th *timeouthandler) HandlersRegistry {
 				numOfNodes := basePayload.GetNumOfNodes()
 				th.SetNumOfNodes(numOfNodes)
 			}
-		} else if message.Topic == "LEADER_VOTE" {
+		} else if message.Topic == LEADER_VOTE {
 			votePayload := EmptyVote()
 			err := votePayload.ToPayload(message.Payload)
 			if err != nil {
@@ -66,7 +66,7 @@ func NewHandlersRegistry(th *timeouthandler) HandlersRegistry {
 						} else {
 							var voteMsg = messaging.Message{
 								Key:     uuid.New(),
-								Topic:   "LEADER_VOTE",
+								Topic:   LEADER_VOTE,
 								Payload: newVotePayload,
 							}
 							th.lastVotes[electionID] = term
@@ -103,7 +103,7 @@ func NewHandlersRegistry(th *timeouthandler) HandlersRegistry {
 		} else {
 			var voteMsg = messaging.Message{
 				Key:     uuid.New(),
-				Topic:   "LEADER_VOTE",
+				Topic:   LEADER_VOTE,
 				Payload: payload,
 			}
 			th.sendMessage(voteMsg)
@@ -114,7 +114,7 @@ func NewHandlersRegistry(th *timeouthandler) HandlersRegistry {
 		tinylogging.AddTrace("****HEARTBEAT**** from nodeID:", th.GetHostID(), " ElectionID:", th.GetElectionID())
 		var message = messaging.Message{
 			Key:   uuid.New(),
-			Topic: "HEARTBEAT",
+			Topic: HEARTBEAT,
 		}
 		th.sendMessage(message)
 	}
