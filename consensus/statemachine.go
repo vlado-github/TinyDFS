@@ -9,7 +9,7 @@ type StateMachine interface {
 type statemachine struct {
 	currentState State
 }
-
+// TODO: should be singleton
 // NewStateMachine creates new instance of StateMachine.
 func NewStateMachine() StateMachine {
 	return &statemachine{

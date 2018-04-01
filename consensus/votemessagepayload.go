@@ -1,4 +1,4 @@
-package tinydfs
+package consensus
 
 import (
 	"encoding/json"

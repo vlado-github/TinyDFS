@@ -16,8 +16,6 @@ type Host interface {
 	GetID() uuid.UUID
 	GetElectionID() int
 	GetIP() (string, error)
-	GetNumOfNodes() int
-	SetNumOfNodes(numOfNodes int)
 	SendMessage(message messaging.Message)
 	RegisterNodeHandler(messaging.HandlerType, messaging.NodeHandlerFunc)
 }
@@ -25,7 +23,6 @@ type Host interface {
 type host struct {
 	node           messaging.Node
 	electionID     int
-	stateMachine   consensus.StateMachine
 	timeoutHandler consensus.TimeoutHandler
 	isQueue        bool
 	connParams     messaging.ConnParams
@@ -40,18 +37,16 @@ type host struct {
 // NewHost creates a new instance of host
 func NewHost(connParams messaging.ConnParams, isQueue bool) Host {
 	node := messaging.NewNode(connParams, isQueue)
-	stateMachine := consensus.NewStateMachine()
-	timeoutHandler := consensus.NewTimeoutHandler()
 	term := 0
 	voteCount := 0
 	electionID := rand.Int()
 	lastVotes := make(map[string]int)
 	lastHeartbeat := uuid.New()
 	numOfNodes := 0
+	timeoutHandler := consensus.NewTimeoutHandler(electionID, node.GetID(), isQueue)
 	return &host{
 		node,
 		electionID,
-		stateMachine,
 		timeoutHandler,
 		isQueue,
 		connParams,
@@ -65,7 +60,8 @@ func NewHost(connParams messaging.ConnParams, isQueue bool) Host {
 func (h *host) Start() {
 	h.registerHandlers()
 	h.node.Run()
-	h.timeoutHandler.StartElectionTime(h.stateMachine)
+	h.timeoutHandler.RegisterSendCallback(h.SendMessage)
+	h.timeoutHandler.StartElectionTime()
 }
 
 func (h *host) GetID() uuid.UUID {
@@ -80,17 +76,6 @@ func (h *host) GetIP() (string, error) {
 	return h.node.GetIP()
 }
 
-func (h *host) GetNumOfNodes() int {
-	if h.isQueue {
-		h.numOfNodes = h.node.GetNumOfNodes()
-	}
-	return h.numOfNodes
-}
-
-func (h *host) SetNumOfNodes(numOfNodes int) {
-	h.numOfNodes = numOfNodes
-}
-
 func (h *host) SendMessage(message messaging.Message) {
 	h.node.SendMessage(message)
 }
@@ -100,8 +85,6 @@ func (h *host) RegisterNodeHandler(handlerType messaging.HandlerType, handler me
 }
 
 func (h *host) registerHandlers() {
-	handlersRegistry := NewHandlersRegistry(h)
-	h.node.RegisterMessageHandler(messaging.MESSAGERECEIVED, handlersRegistry.GetMessagingHandler(messaging.MESSAGERECEIVED))
-	h.timeoutHandler.RegisterHandler(consensus.ELECTIONTIMEOUT, handlersRegistry.GetTimeoutHandler(consensus.ELECTIONTIMEOUT))
-	h.timeoutHandler.RegisterHandler(consensus.HEARTBEATTIMEOUT, handlersRegistry.GetTimeoutHandler(consensus.HEARTBEATTIMEOUT))
+	h.node.RegisterMessageHandler(messaging.MESSAGERECEIVED,
+		h.timeoutHandler.GetHandlersRegistry().GetMessagingHandler(messaging.MESSAGERECEIVED))
 }

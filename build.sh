@@ -23,7 +23,8 @@ tinydfs_install_dependencies() {
 	echo "TinyDFS: Install package dependencies done."
 }
 
-tinydfs_clean_bin() {
+tinydfs_clean() {
+	rm -rf "${SRCDIR}/build"
 	rm -rf "${SRCDIR}/bin"
 }
 
@@ -35,7 +36,7 @@ tinydfs_build() {
 
 tinydfs_setup_gopath
 tinydfs_install_dependencies
-tinydfs_clean_bin
+tinydfs_clean
 tinydfs_build
 
 

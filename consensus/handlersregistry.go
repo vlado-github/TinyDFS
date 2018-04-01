@@ -1,7 +1,6 @@
-package tinydfs
+package consensus
 
 import (
-	"consensus"
 	"messaging"
 	"strconv"
 	"tinylogging"
@@ -12,7 +11,7 @@ import (
 // HandlersRegistry collection of Host's handlers.
 type HandlersRegistry interface {
 	GetMessagingHandler(messagingType messaging.HandlerType) func(message messaging.Message)
-	GetTimeoutHandler(timeoutType consensus.ElectionTimeoutType) func()
+	GetTimeoutHandler(timeoutType ElectionTimeoutType) func()
 }
 
 type handlersregistry struct {
@@ -21,20 +20,20 @@ type handlersregistry struct {
 	sendOnHeartbeatTimeoutHandler    func()
 }
 
-// NewHandlersRegistry creates new handlers registry for host.
-func NewHandlersRegistry(h *host) HandlersRegistry {
+// NewHandlersRegistry creates new handlers registry.
+func NewHandlersRegistry(th *timeouthandler) HandlersRegistry {
 	onMessageReceivedFunc := func(message messaging.Message) {
 		if message.Topic == "HEARTBEAT" {
-			if message.Key != h.lastHeartbeat {
+			if message.Key != th.lastHeartbeat {
 				tinylogging.AddTrace("****Receive a Heartbeat****")
 				// if leader reset heartbeat timeout
-				h.timeoutHandler.ResetHeartbeatTime(h.stateMachine)
+				th.ResetHeartbeatTime()
 				// if any node receives reset election timeout
-				h.timeoutHandler.ResetElectionTime(h.stateMachine)
+				th.ResetElectionTime()
 				// reply
-				h.SendMessage(message)
+				th.sendMessage(message)
 				// save Heartbeat ket
-				h.lastHeartbeat = message.Key
+				th.lastHeartbeat = message.Key
 			}
 		} else if message.Topic == "CLIENT_CONN_OPENED" || message.Topic == "CLIENT_CONN_CLOSED" {
 			tinylogging.AddTrace(message.Topic)
@@ -44,7 +43,7 @@ func NewHandlersRegistry(h *host) HandlersRegistry {
 				tinylogging.AddError("[Host] onMessageReceivedCallback ", err.Error())
 			} else {
 				numOfNodes := basePayload.GetNumOfNodes()
-				h.SetNumOfNodes(numOfNodes)
+				th.SetNumOfNodes(numOfNodes)
 			}
 		} else if message.Topic == "LEADER_VOTE" {
 			votePayload := EmptyVote()
@@ -56,11 +55,11 @@ func NewHandlersRegistry(h *host) HandlersRegistry {
 				term := votePayload.GetTerm()
 				electionID := votePayload.GetElectionID()
 				nodeID := votePayload.GetNodeID()
-				if electionID != strconv.Itoa(h.GetElectionID()) { // not me, vote from other nodes
+				if electionID != strconv.Itoa(th.GetElectionID()) { // not me, vote from other nodes
 					// give a vote
-					lastVotedTerm := h.lastVotes[electionID]
+					lastVotedTerm := th.lastVotes[electionID]
 					if lastVotedTerm != term {
-						newVote := NewVote(term, electionID, h.GetID().String())
+						newVote := NewVote(term, electionID, th.GetHostID().String())
 						newVotePayload, err := newVote.ToByteArray()
 						if err != nil {
 							tinylogging.AddError("[Host] onMessageReceivedCallback ", err.Error())
@@ -70,21 +69,21 @@ func NewHandlersRegistry(h *host) HandlersRegistry {
 								Topic:   "LEADER_VOTE",
 								Payload: newVotePayload,
 							}
-							h.lastVotes[electionID] = term
+							th.lastVotes[electionID] = term
 							// if votes, host will reset the election timeout
-							h.timeoutHandler.ResetElectionTime(h.stateMachine)
+							th.ResetElectionTime()
 							// send vote
 							tinylogging.AddTrace("****Give a vote: TERM: ", term, " ElectionID: ", electionID)
-							h.SendMessage(voteMsg)
+							th.sendMessage(voteMsg)
 						}
 					}
 				} else {
-					if nodeID != h.GetID().String() { // not from me
+					if nodeID != th.GetHostID().String() { // not from me
 						// receive a vote
-						h.voteCount++
-						tinylogging.AddTrace("****Receive a vote: TERM: ", term, " ElectionID: ", electionID, " count:", h.voteCount, " totalNodes:", h.GetNumOfNodes())
-						if h.voteCount > int(h.GetNumOfNodes()/2) {
-							h.timeoutHandler.ChangeStateToLeader(h.stateMachine)
+						th.voteCount++
+						tinylogging.AddTrace("****Receive a vote: TERM: ", term, " ElectionID: ", electionID, " count:", th.voteCount, " totalNodes:", th.GetNumOfNodes())
+						if th.voteCount > int(th.GetNumOfNodes()/2) {
+							th.ChangeStateToLeader()
 							tinylogging.AddTrace("****BECAME A LEADER****")
 						}
 					}
@@ -94,10 +93,10 @@ func NewHandlersRegistry(h *host) HandlersRegistry {
 	}
 
 	sendVoteOnElectionTimeoutFunc := func() {
-		h.term++
-		h.voteCount = 0
-		tinylogging.AddTrace("****Request a vote: TERM: ", h.term, " ElectionID: ", h.electionID, " count:", h.voteCount)
-		vote := NewVote(h.term, strconv.Itoa(h.GetElectionID()), h.GetID().String())
+		th.term++
+		th.voteCount = 0
+		tinylogging.AddTrace("****Request a vote: TERM: ", th.term, " ElectionID: ", th.electionID, " count:", th.voteCount)
+		vote := NewVote(th.term, strconv.Itoa(th.GetElectionID()), th.GetHostID().String())
 		payload, err := vote.ToByteArray()
 		if err != nil {
 			tinylogging.AddError("[Host] sendVoteOnElectionTimeoutCallback ", err.Error())
@@ -107,17 +106,17 @@ func NewHandlersRegistry(h *host) HandlersRegistry {
 				Topic:   "LEADER_VOTE",
 				Payload: payload,
 			}
-			h.SendMessage(voteMsg)
+			th.sendMessage(voteMsg)
 		}
 	}
 
 	sendOnHeartbeatTimeoutFunc := func() {
-		tinylogging.AddTrace("****HEARTBEAT**** from nodeID:", h.GetID(), " ElectionID:", h.GetElectionID())
+		tinylogging.AddTrace("****HEARTBEAT**** from nodeID:", th.GetHostID(), " ElectionID:", th.GetElectionID())
 		var message = messaging.Message{
 			Key:   uuid.New(),
 			Topic: "HEARTBEAT",
 		}
-		h.SendMessage(message)
+		th.sendMessage(message)
 	}
 
 	return &handlersregistry{
@@ -137,13 +136,13 @@ func (r *handlersregistry) GetMessagingHandler(messagingType messaging.HandlerTy
 	return nil
 }
 
-func (r *handlersregistry) GetTimeoutHandler(timoutType consensus.ElectionTimeoutType) func() {
+func (r *handlersregistry) GetTimeoutHandler(timoutType ElectionTimeoutType) func() {
 	switch timoutType {
-	case consensus.ELECTIONTIMEOUT:
+	case ELECTIONTIMEOUT:
 		{
 			return r.sendVoteOnElectionTimeoutHandler
 		}
-	case consensus.HEARTBEATTIMEOUT:
+	case HEARTBEATTIMEOUT:
 		{
 			return r.sendOnHeartbeatTimeoutHandler
 		}
