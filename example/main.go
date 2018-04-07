@@ -54,6 +54,10 @@ func startHost(isQueue bool) tinydfs.Host {
 		var message = messaging.Message{Key: uuid.New(), Topic: "ConnClose for node: " + host.GetID().String()}
 		host.SendMessage(message)
 	}
+	onQueueConnClosedCallback := func() {
+		fmt.Println("TODO: implement on queue connection closed handler...")
+	}
+	host.RegisterNodeHandler(messaging.QUEUECONNCLOSED, onQueueConnClosedCallback)
 	host.RegisterNodeHandler(messaging.NODECONNCLOSED, onConnClosedCallback)
 	host.Start()
 	return host

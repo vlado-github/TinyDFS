@@ -20,11 +20,16 @@ type TimeoutHandler interface {
 	GetNumOfNodes() int
 	SetNumOfNodes(numOfNodes int)
 	GetElectionID() int
+	GetNetworkRegistry() []string
+	SetNetworkRegistry(ipAddresses []string)
+	GetLeaderInfo() LeaderInfo
+	SetLeaderInfo(info LeaderInfo)
 
 	GetHandlersRegistry() HandlersRegistry
 }
 
 type timeouthandler struct {
+	networkRegistry			  []string
 	handlersRegistry		  HandlersRegistry
 	sendMessage				  func(message messaging.Message)
 	sendVoteOnElectionTimeout EventHandlerFunc
@@ -39,11 +44,13 @@ type timeouthandler struct {
 	numOfNodes                int
 	electionID                int
 	hostID 		              uuid.UUID
+	hostIP					  string
 	isQueue					  bool
+	leaderInfo                LeaderInfo
 }
 
 // NewTimeoutHandler creates new instance of TimeoutHandler
-func NewTimeoutHandler(electionID int, hostID uuid.UUID, isQueue bool) TimeoutHandler {
+func NewTimeoutHandler(electionID int, hostIP string, hostID uuid.UUID, isQueue bool) TimeoutHandler {
 	voteCount := 0
 	lastVotes := make(map[string]int)
 	lastHeartbeat := uuid.New()
@@ -61,6 +68,7 @@ func NewTimeoutHandler(electionID int, hostID uuid.UUID, isQueue bool) TimeoutHa
 		term: term,
 		electionID: electionID,
 		hostID: hostID,
+		hostIP: hostIP,
 		isQueue: isQueue,
 	}
 	th.handlersRegistry = NewHandlersRegistry(th)
@@ -168,6 +176,26 @@ func (th *timeouthandler) GetElectionID() int {
 	return th.electionID
 }
 
+func (th *timeouthandler) GetHostIP() string {
+	return th.hostIP
+}
+
 func (th *timeouthandler) GetHostID() uuid.UUID {
 	return th.hostID
+}
+
+func (th *timeouthandler) GetNetworkRegistry() []string {
+	return th.networkRegistry
+}
+
+func (th *timeouthandler) SetNetworkRegistry(ipAddresses []string) {
+	th.networkRegistry = ipAddresses
+}
+
+func (th *timeouthandler) GetLeaderInfo() LeaderInfo {
+	return th.leaderInfo
+}
+
+func (th *timeouthandler) SetLeaderInfo(info LeaderInfo) {
+	th.leaderInfo = info
 }

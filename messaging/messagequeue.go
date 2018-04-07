@@ -72,6 +72,7 @@ func (queue *messagequeue) Run() {
 			queue.onCloseConnection(err)
 			os.Exit(1)
 		}
+
 		queue.onNewConnection()
 
 		var message = Message{Key: uuid.New(), Topic: CONN_ACK}
@@ -87,7 +88,7 @@ func (queue *messagequeue) Run() {
 func (queue *messagequeue) addSystemMessageToQueue(topic string) {
 	var key = uuid.New()
 	var numOfNodes = queue.GetNumOfNodes()
-	payload, err := NewBaseMessagePayload(numOfNodes).ToByteArray()
+	payload, err := NewBaseMessagePayload(numOfNodes, queue.getNodesIPAdresses()).ToByteArray()
 	if err != nil {
 		tinylogging.AddError("[Queue] addSystemMessageToQueue failed to create message payload for topic:", topic)
 	} else {
@@ -144,6 +145,14 @@ func (queue *messagequeue) GetNumOfNodes() int {
 	return len(queue.pool.conns)
 }
 
+func (queue *messagequeue) getNodesIPAdresses() []string {
+	ipAddresses := make([]string, len(queue.pool.conns))
+	for  _, value := range queue.pool.conns {
+		ipAddresses = append(ipAddresses, value.RemoteAddr().String())
+	}
+	return ipAddresses
+}
+
 func (queue *messagequeue) Close() error {
 	for _, conn := range queue.pool.conns {
 		if conn != nil {
@@ -157,7 +166,7 @@ func (queue *messagequeue) Close() error {
 func (queue *messagequeue) onNewConnection() {
 	tinylogging.AddInfo("[Queue] Client Connected...")
 	queue.onNodeConnectionOpenedHandler(queue)
-	queue.addSystemMessageToQueue(CLIENT_CONN_OPENED)
+	queue.addSystemMessageToQueue(CLIENT_CONN_OPENED) 
 }
 
 func (queue *messagequeue) onCloseConnection(err error) {

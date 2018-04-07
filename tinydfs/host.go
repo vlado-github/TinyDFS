@@ -31,19 +31,18 @@ type host struct {
 	voteCount     int
 	lastVotes     map[string]int
 	lastHeartbeat uuid.UUID
-	numOfNodes    int
 }
 
 // NewHost creates a new instance of host
 func NewHost(connParams messaging.ConnParams, isQueue bool) Host {
 	node := messaging.NewNode(connParams, isQueue)
+	hostIP, _ := node.GetIP()
 	term := 0
 	voteCount := 0
 	electionID := rand.Int()
 	lastVotes := make(map[string]int)
 	lastHeartbeat := uuid.New()
-	numOfNodes := 0
-	timeoutHandler := consensus.NewTimeoutHandler(electionID, node.GetID(), isQueue)
+	timeoutHandler := consensus.NewTimeoutHandler(electionID, hostIP, node.GetID(), isQueue)
 	return &host{
 		node,
 		electionID,
@@ -53,8 +52,7 @@ func NewHost(connParams messaging.ConnParams, isQueue bool) Host {
 		term,
 		voteCount,
 		lastVotes,
-		lastHeartbeat,
-		numOfNodes}
+		lastHeartbeat}
 }
 
 func (h *host) Start() {

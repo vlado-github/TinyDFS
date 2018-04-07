@@ -10,4 +10,6 @@ const (
 	NODECONNOPENED HandlerType = iota
 	// MESSAGERECEIVED type
 	MESSAGERECEIVED HandlerType = iota
+	// QUEUECONNCLOSED type
+	QUEUECONNCLOSED HandlerType = iota
 )

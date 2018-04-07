@@ -4,6 +4,7 @@ import (
 	"messaging"
 	"strconv"
 	"tinylogging"
+	"net"
 
 	"github.com/google/uuid"
 )
@@ -43,7 +44,28 @@ func NewHandlersRegistry(th *timeouthandler) HandlersRegistry {
 				tinylogging.AddError("[Host] onMessageReceivedCallback ", err.Error())
 			} else {
 				numOfNodes := basePayload.GetNumOfNodes()
+				ipAddresses := basePayload.GetIPs()
 				th.SetNumOfNodes(numOfNodes)
+			
+				// on every new change in connections we update our 
+				// network discovery register
+				filtered := make([]string, len(ipAddresses))
+				for i := range ipAddresses {
+					if ipAddresses[i] != "" {
+						host, _, _ := net.SplitHostPort(ipAddresses[i])
+						filtered = append(filtered, host)
+						//tinylogging.AddTrace(host)
+					}
+				}
+				th.SetNetworkRegistry(filtered)
+			}
+		} else if message.Topic == LEADER_INFO {
+			leaderInfoPayload := EmptyLeaderInfo()
+			err := leaderInfoPayload.ToPayload(message.Payload)
+			if err != nil {
+				tinylogging.AddError("[Host] onMessageReceivedCallback ", err.Error())
+			} else {
+				th.SetLeaderInfo(leaderInfoPayload)
 			}
 		} else if message.Topic == LEADER_VOTE {
 			votePayload := EmptyVote()
@@ -85,6 +107,20 @@ func NewHandlersRegistry(th *timeouthandler) HandlersRegistry {
 						if th.voteCount > int(th.GetNumOfNodes()/2) {
 							th.ChangeStateToLeader()
 							tinylogging.AddTrace("****BECAME A LEADER****")
+
+							// notify others about new leader
+							newLeaderInfo := NewLeaderInfo(th.GetHostIP(), term, th.GetElectionID(), th.GetHostID().String())
+							newLeaderInfoPayload, err := newLeaderInfo.ToByteArray()
+							if err != nil {
+								tinylogging.AddError("[Host] onMessageReceivedCallback ", err.Error())
+							} else {
+								message := messaging.Message {
+									Topic: LEADER_INFO,
+									Key: uuid.New(),
+									Payload: newLeaderInfoPayload,
+								}
+								th.sendMessage(message)
+							}
 						}
 					}
 				}

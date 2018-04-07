@@ -36,6 +36,7 @@ type node struct {
 	isQueue                   bool
 	queue                     MessageQueue
 	onConnectionClosedHandler NodeHandlerFunc
+	onQueueConnectionClosedHandler NodeHandlerFunc
 	onMessageReceivedHandler  MessageHandlerFunc
 }
 
@@ -55,6 +56,7 @@ func NewNode(conn ConnParams, isQueue bool) Node {
 		fileManager: fm,
 		isQueue:     isQueue,
 		queue:       msgQueue,
+		onQueueConnectionClosedHandler: NewNodeHandlerFunc(),
 		onConnectionClosedHandler: NewNodeHandlerFunc(),
 		onMessageReceivedHandler:  NewMessageHandlerFunc(),
 	}
@@ -97,14 +99,19 @@ func (n *node) Run() error {
 	}
 
 	// connects to queue
+	return n.ConnectToQueue(n.connParams.Protocol, n.connParams.Ip+":"+n.connParams.Port)
+}
+
+// Connect to queue
+func (n *node) ConnectToQueue(protocol string, address string) error {
 	numOfAttempts := 5
 	var err error
-	n.conn, err = net.Dial(n.connParams.Protocol, n.connParams.Ip+":"+n.connParams.Port)
+	n.conn, err = net.Dial(protocol, address)
 	numOfAttempts--
 
 	if err != nil {
 		for numOfAttempts > 0 {
-			n.conn, err = net.Dial(n.connParams.Protocol, n.connParams.Ip+":"+n.connParams.Port)
+			n.conn, err = net.Dial(protocol, address)
 			numOfAttempts--
 		}
 		tinylogging.AddError("Error dialing:", err.Error())
@@ -128,6 +135,7 @@ func (n *node) receiveMessages() {
 		err := decodeMessage(&message, decoder)
 		if err != nil {
 			tinylogging.AddError("Error: Queue connection is closed.", err.Error())
+			n.onQueueConnectionClosedHandler()
 			break
 		} else {
 			tinylogging.AddInfo("[Client] Received: ", message.Topic, string(message.Payload))
@@ -164,6 +172,11 @@ func (n *node) RegisterHandler(handlerType HandlerType, handlerFunc NodeHandlerF
 	case NODECONNCLOSED:
 		{
 			n.onConnectionClosedHandler = handlerFunc
+			break
+		}
+	case QUEUECONNCLOSED: 
+		{
+			n.onQueueConnectionClosedHandler = handlerFunc
 			break
 		}
 	default:
