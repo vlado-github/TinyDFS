@@ -13,6 +13,7 @@ type TimeoutHandler interface {
 	ResetElectionTime()
 	ChangeStateToLeader()
 	RegisterSendCallback(callback func(message messaging.Message))
+	RegisterOnLeaderElectedHandler(eventHandler EventHandlerFunc)
 
 	StartHeartbeatTime()
 	ResetHeartbeatTime()
@@ -34,6 +35,7 @@ type timeouthandler struct {
 	sendMessage				  func(message messaging.Message)
 	sendVoteOnElectionTimeout EventHandlerFunc
 	sendOnHeartbeatTimeout    EventHandlerFunc
+	onLeaderElected	          EventHandlerFunc
 	timer                     *time.Timer
 	heartbeat                 *time.Timer
 	stateMachine              StateMachine
@@ -60,6 +62,7 @@ func NewTimeoutHandler(electionID int, hostIP string, hostID uuid.UUID, isQueue 
 	th := &timeouthandler{
 		sendVoteOnElectionTimeout: NewEventHandlerFunc(),
 		sendOnHeartbeatTimeout:    NewEventHandlerFunc(),
+		onLeaderElected:		   NewEventHandlerFunc(),
 		stateMachine: stateMachine,
 		voteCount: voteCount,
 		lastVotes: lastVotes,
@@ -119,7 +122,11 @@ func (th *timeouthandler) ChangeStateToLeader() {
 }
 
 func (th *timeouthandler) RegisterSendCallback(callback func(message messaging.Message)) {
-	th.sendMessage = callback;
+	th.sendMessage = callback
+}
+
+func (th *timeouthandler) RegisterOnLeaderElectedHandler(eventHandler EventHandlerFunc) {
+	th.onLeaderElected = eventHandler
 }
 
 func (th *timeouthandler) registerHandler(electionType ElectionTimeoutType, handlerFunc EventHandlerFunc) {

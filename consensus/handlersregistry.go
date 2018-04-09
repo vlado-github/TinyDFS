@@ -66,6 +66,8 @@ func NewHandlersRegistry(th *timeouthandler) HandlersRegistry {
 				tinylogging.AddError("[Host] onMessageReceivedCallback ", err.Error())
 			} else {
 				th.SetLeaderInfo(leaderInfoPayload)
+				th.ResetElectionTime()
+				th.onLeaderElected()
 			}
 		} else if message.Topic == LEADER_VOTE {
 			votePayload := EmptyVote()

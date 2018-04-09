@@ -30,9 +30,9 @@ const (
 	/* testing */
 
 	// ELLECTIONMIN type (in ms)
-	ELLECTIONMIN int = 45000
+	ELLECTIONMIN int = 15000
 	// ELLECTIONMAX type (in ms)
-	ELLECTIONMAX int = 60000
+	ELLECTIONMAX int = 30000
 	// HEARTBEATMAX type (in ms)
 	HEARTBEATMAX int = 5000
 )

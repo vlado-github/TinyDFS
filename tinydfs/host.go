@@ -18,6 +18,10 @@ type Host interface {
 	GetIP() (string, error)
 	SendMessage(message messaging.Message)
 	RegisterNodeHandler(messaging.HandlerType, messaging.NodeHandlerFunc)
+
+	ConnectToLeaderQueue() error
+	ConnectToNextAvailableQueue() error 
+	CloseConnToQueue() error 
 }
 
 type host struct {
@@ -78,11 +82,68 @@ func (h *host) SendMessage(message messaging.Message) {
 	h.node.SendMessage(message)
 }
 
+// For case a leader is unaccessable next queue for messaging is selected.
+func (h *host) ConnectToNextAvailableQueue() error {
+	leaderInfo := h.timeoutHandler.GetLeaderInfo()
+	networkRegistry := h.timeoutHandler.GetNetworkRegistry()
+	if leaderInfo != nil {
+		if leaderInfo.GetIP() == "127.0.0.1" {
+			// TODO: check different port
+			if networkRegistry != nil {
+				for i := range networkRegistry {
+					ipAddress := networkRegistry[i]
+					if ipAddress != leaderInfo.GetIP() {
+						return h.node.ConnectToQueue(h.connParams.Protocol, ipAddress+":"+h.connParams.Port)
+					}
+				}
+			}
+		} else {
+			if networkRegistry != nil {
+				for i := range networkRegistry {
+					ipAddress := networkRegistry[i]
+					if ipAddress != leaderInfo.GetIP() {
+						return h.node.ConnectToQueue(h.connParams.Protocol, ipAddress+":"+h.connParams.Port)
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// Opens connection to elected leader's queue
+func (h *host) ConnectToLeaderQueue() error {
+	leaderInfo := h.timeoutHandler.GetLeaderInfo()
+	return h.node.ConnectToQueue(h.connParams.Protocol, leaderInfo.GetIP()+":"+h.connParams.Port)
+}
+
+// Closes connection to current queue
+func (h *host) CloseConnToQueue() error {
+	return h.node.CloseConn()
+}
+
 func (h *host) RegisterNodeHandler(handlerType messaging.HandlerType, handler messaging.NodeHandlerFunc) {
 	h.node.RegisterHandler(handlerType, handler)
 }
 
 func (h *host) registerHandlers() {
+	onLeaderElectedCallback := func() {
+		leaderInfo := h.timeoutHandler.GetLeaderInfo()
+		if leaderInfo != nil {
+			if h.GetID().String() != leaderInfo.GetNodeID() {
+				//TODO: needs to check if already connected to leader
+				h.CloseConnToQueue()
+				h.ConnectToLeaderQueue()
+			}
+		}
+	}
+	h.timeoutHandler.RegisterOnLeaderElectedHandler(onLeaderElectedCallback)
+
+	onQueueConnClosedCallback := func() {
+		h.ConnectToNextAvailableQueue()
+	}
+	h.RegisterNodeHandler(messaging.QUEUECONNCLOSED, onQueueConnClosedCallback)
+
 	h.node.RegisterMessageHandler(messaging.MESSAGERECEIVED,
 		h.timeoutHandler.GetHandlersRegistry().GetMessagingHandler(messaging.MESSAGERECEIVED))
 }

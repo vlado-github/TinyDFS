@@ -18,6 +18,7 @@ import (
 type Node interface {
 	Run() error
 	SendMessage(message Message)
+	ConnectToQueue(protocol string, address string) error
 	CloseConn() error
 
 	GetID() uuid.UUID
@@ -135,7 +136,6 @@ func (n *node) receiveMessages() {
 		err := decodeMessage(&message, decoder)
 		if err != nil {
 			tinylogging.AddError("Error: Queue connection is closed.", err.Error())
-			n.onQueueConnectionClosedHandler()
 			break
 		} else {
 			tinylogging.AddInfo("[Client] Received: ", message.Topic, string(message.Payload))
@@ -149,11 +149,11 @@ func (n *node) receiveMessages() {
 			}
 		}
 	}
+	n.onQueueConnectionClosedHandler()
 }
 
 // Close connection to the queue
 func (n *node) CloseConn() error {
-	n.onConnectionClosedHandler()
 	err := n.conn.Close()
 	if err != nil {
 		tinylogging.AddError("Close connection on node failed.", err.Error())
@@ -161,9 +161,12 @@ func (n *node) CloseConn() error {
 	}
 	if n.queue != nil {
 		err := n.queue.Close()
-		tinylogging.AddError("Close message queue connection on node failed.", err.Error())
+		if err != nil {
+			tinylogging.AddError("Close message queue connection on node failed.", err.Error())
+		}
 		return err
 	}
+	n.onConnectionClosedHandler()
 	return err
 }
 
