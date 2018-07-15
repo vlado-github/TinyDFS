@@ -11,6 +11,7 @@ type LeaderInfo interface {
 	ToByteArray() ([]byte, error)
 	ToPayload(data []byte) error
 	GetIP() string
+	GetPort() string
 	GetTerm() int
 	GetElectionID() int
 	GetNodeID() string
@@ -18,15 +19,17 @@ type LeaderInfo interface {
 
 type leaderinfomessagepayload struct {
 	IP 		   string `json:"ip"`
+	Port       string `json:"port"`
 	Term       int    `json:"term"`
 	ElectionID int `json:"election_id"`
 	NodeID     string `json:"node_id"`
 }
 
 // NewLeaderInfo creates new instance of the message payload for vote
-func NewLeaderInfo(ip string, term int, electionID int, nodeID string) LeaderInfo {
+func NewLeaderInfo(ip string, port string, term int, electionID int, nodeID string) LeaderInfo {
 	return &leaderinfomessagepayload{
 		IP: ip,
+		Port: port,
 		Term:       term,
 		ElectionID: electionID,
 		NodeID:     nodeID,
@@ -37,6 +40,7 @@ func NewLeaderInfo(ip string, term int, electionID int, nodeID string) LeaderInf
 func EmptyLeaderInfo() LeaderInfo {
 	return &leaderinfomessagepayload{
 		IP: "",
+		Port: "",
 		Term:       -1,
 		ElectionID: -1,
 		NodeID:     "",
@@ -45,6 +49,10 @@ func EmptyLeaderInfo() LeaderInfo {
 
 func (payload *leaderinfomessagepayload) GetIP() string {
 	return payload.IP
+}
+
+func (payload *leaderinfomessagepayload) GetPort() string {
+	return payload.Port
 }
 
 func (payload *leaderinfomessagepayload) GetTerm() int {

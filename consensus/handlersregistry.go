@@ -1,10 +1,11 @@
 package consensus
 
 import (
+	"encoding/json"
 	"messaging"
+	"net"
 	"strconv"
 	"tinylogging"
-	"net"
 
 	"github.com/google/uuid"
 )
@@ -46,20 +47,46 @@ func NewHandlersRegistry(th *timeouthandler) HandlersRegistry {
 				numOfNodes := basePayload.GetNumOfNodes()
 				ipAddresses := basePayload.GetIPs()
 				th.SetNumOfNodes(numOfNodes)
-			
-				// on every new change in connections we update our 
+
+				// on every new change in connections we update our
 				// network discovery register
-				filtered := make([]string, len(ipAddresses))
+				var filtered []NetworkTuple
 				for i := range ipAddresses {
 					if ipAddresses[i] != "" {
-						host, _, _ := net.SplitHostPort(ipAddresses[i])
-						filtered = append(filtered, host)
+						host, port, _ := net.SplitHostPort(ipAddresses[i])
+						tuple := NewNetworkTuple(host, port)
+						filtered = append(filtered, tuple)
 						//tinylogging.AddTrace(host)
 					}
 				}
-				th.SetNetworkRegistry(filtered)
+				registry := NewNetworkRegistry(filtered)
+				th.SetNetworkRegistry(registry)
+
+				// notify others about new registry
+				payload, err := json.Marshal(registry)
+				if err != nil {
+					tinylogging.AddError("[Host] onMessageReceivedCallback ", err.Error())
+				} else {
+					message := messaging.Message{
+						Topic:   NEW_REGISTRY,
+						Key:     uuid.New(),
+						Payload: payload,
+					}
+					th.sendMessage(message)
+				}
+			}
+		} else if message.Topic == NEW_REGISTRY {
+			tinylogging.AddTrace(message.Topic)
+			registryPayload := EmptyNetworkRegistry()
+			err := registryPayload.ToPayload(message.Payload)
+			if err != nil {
+				tinylogging.AddError("[Host] onMessageReceivedCallback ", err.Error())
+			} else {
+				// updates network discovery register
+				th.SetNetworkRegistry(registryPayload)
 			}
 		} else if message.Topic == LEADER_INFO {
+			tinylogging.AddTrace(message.Topic)
 			leaderInfoPayload := EmptyLeaderInfo()
 			err := leaderInfoPayload.ToPayload(message.Payload)
 			if err != nil {
@@ -70,6 +97,7 @@ func NewHandlersRegistry(th *timeouthandler) HandlersRegistry {
 				th.onLeaderElected()
 			}
 		} else if message.Topic == LEADER_VOTE {
+			tinylogging.AddTrace(message.Topic)
 			votePayload := EmptyVote()
 			err := votePayload.ToPayload(message.Payload)
 			if err != nil {
@@ -84,7 +112,7 @@ func NewHandlersRegistry(th *timeouthandler) HandlersRegistry {
 					lastVotedTerm := th.lastVotes[electionID]
 					if lastVotedTerm != term {
 						newVote := NewVote(term, electionID, th.GetHostID().String())
-						newVotePayload, err := newVote.ToByteArray()
+						newVotePayload, err := json.Marshal(newVote)
 						if err != nil {
 							tinylogging.AddError("[Host] onMessageReceivedCallback ", err.Error())
 						} else {
@@ -111,14 +139,15 @@ func NewHandlersRegistry(th *timeouthandler) HandlersRegistry {
 							tinylogging.AddTrace("****BECAME A LEADER****")
 
 							// notify others about new leader
-							newLeaderInfo := NewLeaderInfo(th.GetHostIP(), term, th.GetElectionID(), th.GetHostID().String())
-							newLeaderInfoPayload, err := newLeaderInfo.ToByteArray()
+							newLeaderInfo := NewLeaderInfo(th.GetHostIP(), th.GetHostPort(), term, th.GetElectionID(), th.GetHostID().String())
+							newLeaderInfoPayload, err := json.Marshal(newLeaderInfo)
 							if err != nil {
 								tinylogging.AddError("[Host] onMessageReceivedCallback ", err.Error())
 							} else {
-								message := messaging.Message {
-									Topic: LEADER_INFO,
-									Key: uuid.New(),
+								tinylogging.AddTrace(newLeaderInfo)
+								message := messaging.Message{
+									Topic:   LEADER_INFO,
+									Key:     uuid.New(),
 									Payload: newLeaderInfoPayload,
 								}
 								th.sendMessage(message)
@@ -135,7 +164,7 @@ func NewHandlersRegistry(th *timeouthandler) HandlersRegistry {
 		th.voteCount = 0
 		tinylogging.AddTrace("****Request a vote: TERM: ", th.term, " ElectionID: ", th.electionID, " count:", th.voteCount)
 		vote := NewVote(th.term, strconv.Itoa(th.GetElectionID()), th.GetHostID().String())
-		payload, err := vote.ToByteArray()
+		payload, err := json.Marshal(vote)
 		if err != nil {
 			tinylogging.AddError("[Host] sendVoteOnElectionTimeoutCallback ", err.Error())
 		} else {

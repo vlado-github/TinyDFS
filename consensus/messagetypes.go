@@ -1,8 +1,9 @@
 package consensus
 
 const (
-	LEADER_INFO string = "LEADER_INFO"
-	LEADER_VOTE string = "LEADER_VOTE"
-	HEARTBEAT   string = "HEARTBEAT"
-	DISCOVERY   string = "DISCOVERY"
+	LEADER_INFO  string = "LEADER_INFO"
+	LEADER_VOTE  string = "LEADER_VOTE"
+	HEARTBEAT    string = "HEARTBEAT"
+	DISCOVERY    string = "DISCOVERY"
+	NEW_REGISTRY string = "NEW_REGISTRY"
 )

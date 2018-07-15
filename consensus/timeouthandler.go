@@ -21,8 +21,8 @@ type TimeoutHandler interface {
 	GetNumOfNodes() int
 	SetNumOfNodes(numOfNodes int)
 	GetElectionID() int
-	GetNetworkRegistry() []string
-	SetNetworkRegistry(ipAddresses []string)
+	GetNetworkRegistry() NetworkRegistry
+	SetNetworkRegistry(registry NetworkRegistry)
 	GetLeaderInfo() LeaderInfo
 	SetLeaderInfo(info LeaderInfo)
 
@@ -30,7 +30,7 @@ type TimeoutHandler interface {
 }
 
 type timeouthandler struct {
-	networkRegistry			  []string
+	networkRegistry			  NetworkRegistry
 	handlersRegistry		  HandlersRegistry
 	sendMessage				  func(message messaging.Message)
 	sendVoteOnElectionTimeout EventHandlerFunc
@@ -47,12 +47,13 @@ type timeouthandler struct {
 	electionID                int
 	hostID 		              uuid.UUID
 	hostIP					  string
+	hostPort                  string
 	isQueue					  bool
 	leaderInfo                LeaderInfo
 }
 
 // NewTimeoutHandler creates new instance of TimeoutHandler
-func NewTimeoutHandler(electionID int, hostIP string, hostID uuid.UUID, isQueue bool) TimeoutHandler {
+func NewTimeoutHandler(electionID int, hostIP string, hostPort string, hostID uuid.UUID, isQueue bool) TimeoutHandler {
 	voteCount := 0
 	lastVotes := make(map[string]int)
 	lastHeartbeat := uuid.New()
@@ -72,6 +73,7 @@ func NewTimeoutHandler(electionID int, hostIP string, hostID uuid.UUID, isQueue 
 		electionID: electionID,
 		hostID: hostID,
 		hostIP: hostIP,
+		hostPort: hostPort,
 		isQueue: isQueue,
 	}
 	th.handlersRegistry = NewHandlersRegistry(th)
@@ -187,16 +189,20 @@ func (th *timeouthandler) GetHostIP() string {
 	return th.hostIP
 }
 
+func (th *timeouthandler) GetHostPort() string {
+	return th.hostPort
+}
+
 func (th *timeouthandler) GetHostID() uuid.UUID {
 	return th.hostID
 }
 
-func (th *timeouthandler) GetNetworkRegistry() []string {
+func (th *timeouthandler) GetNetworkRegistry() NetworkRegistry {
 	return th.networkRegistry
 }
 
-func (th *timeouthandler) SetNetworkRegistry(ipAddresses []string) {
-	th.networkRegistry = ipAddresses
+func (th *timeouthandler) SetNetworkRegistry(registry NetworkRegistry) {
+	th.networkRegistry = registry
 }
 
 func (th *timeouthandler) GetLeaderInfo() LeaderInfo {

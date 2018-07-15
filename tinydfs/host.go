@@ -20,8 +20,8 @@ type Host interface {
 	RegisterNodeHandler(messaging.HandlerType, messaging.NodeHandlerFunc)
 
 	ConnectToLeaderQueue() error
-	ConnectToNextAvailableQueue() error 
-	CloseConnToQueue() error 
+	ConnectToNextAvailableQueue() error
+	CloseConnToQueue() error
 }
 
 type host struct {
@@ -38,15 +38,16 @@ type host struct {
 }
 
 // NewHost creates a new instance of host
-func NewHost(connParams messaging.ConnParams, isQueue bool) Host {
-	node := messaging.NewNode(connParams, isQueue)
+func NewHost(connParams messaging.ConnParams, broadcastConnParams messaging.ConnParams, isQueue bool, port string) Host {
+	node := messaging.NewNode(connParams, broadcastConnParams, isQueue, port)
 	hostIP, _ := node.GetIP()
+	hostPort := node.GetPort()
 	term := 0
 	voteCount := 0
 	electionID := rand.Int()
 	lastVotes := make(map[string]int)
 	lastHeartbeat := uuid.New()
-	timeoutHandler := consensus.NewTimeoutHandler(electionID, hostIP, node.GetID(), isQueue)
+	timeoutHandler := consensus.NewTimeoutHandler(electionID, hostIP, hostPort, node.GetID(), isQueue)
 	return &host{
 		node,
 		electionID,
@@ -87,26 +88,16 @@ func (h *host) ConnectToNextAvailableQueue() error {
 	leaderInfo := h.timeoutHandler.GetLeaderInfo()
 	networkRegistry := h.timeoutHandler.GetNetworkRegistry()
 	if leaderInfo != nil {
-		if leaderInfo.GetIP() == "127.0.0.1" {
-			// TODO: check different port
-			if networkRegistry != nil {
-				for i := range networkRegistry {
-					ipAddress := networkRegistry[i]
-					if ipAddress != leaderInfo.GetIP() {
-						return h.node.ConnectToQueue(h.connParams.Protocol, ipAddress+":"+h.connParams.Port)
-					}
-				}
-			}
-		} else {
-			if networkRegistry != nil {
-				for i := range networkRegistry {
-					ipAddress := networkRegistry[i]
-					if ipAddress != leaderInfo.GetIP() {
-						return h.node.ConnectToQueue(h.connParams.Protocol, ipAddress+":"+h.connParams.Port)
-					}
+		if networkRegistry != nil {
+			tuples := networkRegistry.GetItems()
+			for i := range tuples {
+				item := tuples[i]
+				if item.GetIP() != leaderInfo.GetIP() {
+					return h.node.ConnectToQueue(h.connParams.Protocol, item.GetIP()+":"+item.GetPort())
 				}
 			}
 		}
+
 	}
 	return nil
 }
@@ -130,11 +121,11 @@ func (h *host) registerHandlers() {
 	onLeaderElectedCallback := func() {
 		leaderInfo := h.timeoutHandler.GetLeaderInfo()
 		if leaderInfo != nil {
-			if h.GetID().String() != leaderInfo.GetNodeID() {
-				//TODO: needs to check if already connected to leader
-				h.CloseConnToQueue()
-				h.ConnectToLeaderQueue()
-			}
+			//if h.GetID().String() != leaderInfo.GetNodeID() {
+			//TODO: needs to check if already connected to leader
+			h.CloseConnToQueue()
+			h.ConnectToLeaderQueue()
+			//}
 		}
 	}
 	h.timeoutHandler.RegisterOnLeaderElectedHandler(onLeaderElectedCallback)

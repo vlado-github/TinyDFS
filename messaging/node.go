@@ -23,6 +23,7 @@ type Node interface {
 
 	GetID() uuid.UUID
 	GetIP() (string, error)
+	GetPort() string
 	GetNumOfNodes() int
 
 	RegisterHandler(HandlerType, NodeHandlerFunc)
@@ -30,19 +31,23 @@ type Node interface {
 }
 
 type node struct {
-	id                        uuid.UUID
-	connParams                ConnParams
-	conn                      net.Conn
-	fileManager               persistance.FileManager
-	isQueue                   bool
-	queue                     MessageQueue
-	onConnectionClosedHandler NodeHandlerFunc
+	id                             uuid.UUID
+	connParams                     ConnParams
+	broadcastQueueConnParams       ConnParams
+	conn                           net.Conn
+	fileManager                    persistance.FileManager
+	isQueue                        bool
+	queue                          MessageQueue
+	onConnectionClosedHandler      NodeHandlerFunc
 	onQueueConnectionClosedHandler NodeHandlerFunc
-	onMessageReceivedHandler  MessageHandlerFunc
+	onMessageReceivedHandler       MessageHandlerFunc
+	port                           string
 }
 
+const DefaultPort string = "3333"
+
 // NewNode creates new instance of node
-func NewNode(conn ConnParams, isQueue bool) Node {
+func NewNode(conn ConnParams, broadcastQueueConn ConnParams, isQueue bool, port string) Node {
 	rand.Seed(time.Now().Unix())
 	uniqueID := uuid.New()
 	fm := persistance.NewFileManager(getCurrentDirectory() + "//" + uniqueID.String())
@@ -50,16 +55,22 @@ func NewNode(conn ConnParams, isQueue bool) Node {
 	if isQueue {
 		msgQueue = NewQueue(conn)
 	}
+	var p string
+	if port == "" {
+		p = DefaultPort
+	}
 
 	return &node{
-		id:          uniqueID,
-		connParams:  conn,
-		fileManager: fm,
-		isQueue:     isQueue,
-		queue:       msgQueue,
+		id:                       uniqueID,
+		connParams:               conn,
+		broadcastQueueConnParams: broadcastQueueConn,
+		fileManager:              fm,
+		isQueue:                  isQueue,
+		queue:                    msgQueue,
 		onQueueConnectionClosedHandler: NewNodeHandlerFunc(),
-		onConnectionClosedHandler: NewNodeHandlerFunc(),
-		onMessageReceivedHandler:  NewMessageHandlerFunc(),
+		onConnectionClosedHandler:      NewNodeHandlerFunc(),
+		onMessageReceivedHandler:       NewMessageHandlerFunc(),
+		port: p,
 	}
 }
 
@@ -87,25 +98,29 @@ func (n *node) GetIP() (string, error) {
 	return ipAddress, err
 }
 
+func (n *node) GetPort() string {
+	return n.port
+}
+
 // Return number of connected nodes to the queue
 func (n *node) GetNumOfNodes() int {
 	return n.queue.GetNumOfNodes()
 }
 
-// If node is queue than starts a queue
-// Runs node and connects to the queue
+// If node is queue than starts its own queue
+// Runs node and connects to the broadcast queue
 func (n *node) Run() error {
 	if n.isQueue {
 		go n.queue.Run()
 	}
 
-	// connects to queue
-	return n.ConnectToQueue(n.connParams.Protocol, n.connParams.Ip+":"+n.connParams.Port)
+	// connects to broadcast queue
+	return n.ConnectToQueue(n.broadcastQueueConnParams.Protocol, n.broadcastQueueConnParams.Ip+":"+n.broadcastQueueConnParams.Port)
 }
 
 // Connect to queue
 func (n *node) ConnectToQueue(protocol string, address string) error {
-	numOfAttempts := 5
+	numOfAttempts := 10
 	var err error
 	n.conn, err = net.Dial(protocol, address)
 	numOfAttempts--
@@ -115,7 +130,7 @@ func (n *node) ConnectToQueue(protocol string, address string) error {
 			n.conn, err = net.Dial(protocol, address)
 			numOfAttempts--
 		}
-		tinylogging.AddError("Error dialing:", err.Error())
+		tinylogging.AddError("Error dialing: ", address, protocol, err.Error())
 	} else {
 		go n.receiveMessages()
 	}
@@ -135,7 +150,7 @@ func (n *node) receiveMessages() {
 		var message Message
 		err := decodeMessage(&message, decoder)
 		if err != nil {
-			tinylogging.AddError("Error: Queue connection is closed.", err.Error())
+			tinylogging.AddError("Error: Decoding received message.", err.Error())
 			break
 		} else {
 			tinylogging.AddInfo("[Client] Received: ", message.Topic, string(message.Payload))
@@ -177,7 +192,7 @@ func (n *node) RegisterHandler(handlerType HandlerType, handlerFunc NodeHandlerF
 			n.onConnectionClosedHandler = handlerFunc
 			break
 		}
-	case QUEUECONNCLOSED: 
+	case QUEUECONNCLOSED:
 		{
 			n.onQueueConnectionClosedHandler = handlerFunc
 			break
