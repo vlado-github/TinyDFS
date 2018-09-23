@@ -19,6 +19,7 @@ type Node interface {
 	Run() error
 	SendMessage(message Message)
 	ConnectToQueue(protocol string, address string) error
+	IsConnectedToQueue() bool
 	CloseConn() error
 
 	GetID() uuid.UUID
@@ -36,7 +37,6 @@ type node struct {
 	broadcastQueueConnParams       ConnParams
 	conn                           net.Conn
 	fileManager                    persistance.FileManager
-	isQueue                        bool
 	queue                          MessageQueue
 	onConnectionClosedHandler      NodeHandlerFunc
 	onQueueConnectionClosedHandler NodeHandlerFunc
@@ -45,16 +45,15 @@ type node struct {
 }
 
 const DefaultPort string = "3333"
+const MaxNumberOfConnAttempts int = 10
 
 // NewNode creates new instance of node
-func NewNode(conn ConnParams, broadcastQueueConn ConnParams, isQueue bool, port string) Node {
+func NewNode(conn ConnParams, broadcastQueueConn ConnParams, port string) Node {
 	rand.Seed(time.Now().Unix())
 	uniqueID := uuid.New()
 	fm := persistance.NewFileManager(getCurrentDirectory() + "//" + uniqueID.String())
-	var msgQueue MessageQueue
-	if isQueue {
-		msgQueue = NewQueue(conn)
-	}
+	var msgQueue = NewQueue(conn)
+
 	var p string
 	if port == "" {
 		p = DefaultPort
@@ -65,7 +64,6 @@ func NewNode(conn ConnParams, broadcastQueueConn ConnParams, isQueue bool, port 
 		connParams:               conn,
 		broadcastQueueConnParams: broadcastQueueConn,
 		fileManager:              fm,
-		isQueue:                  isQueue,
 		queue:                    msgQueue,
 		onQueueConnectionClosedHandler: NewNodeHandlerFunc(),
 		onConnectionClosedHandler:      NewNodeHandlerFunc(),
@@ -110,31 +108,42 @@ func (n *node) GetNumOfNodes() int {
 // If node is queue than starts its own queue
 // Runs node and connects to the broadcast queue
 func (n *node) Run() error {
-	if n.isQueue {
-		go n.queue.Run()
-	}
-
+	// starts queue
+	go n.queue.Run()
 	// connects to broadcast queue
 	return n.ConnectToQueue(n.broadcastQueueConnParams.Protocol, n.broadcastQueueConnParams.Ip+":"+n.broadcastQueueConnParams.Port)
 }
 
 // Connect to queue
 func (n *node) ConnectToQueue(protocol string, address string) error {
-	numOfAttempts := 10
+	numOfAttempts := 0
 	var err error
 	n.conn, err = net.Dial(protocol, address)
-	numOfAttempts--
+	numOfAttempts++
 
 	if err != nil {
-		for numOfAttempts > 0 {
+		var isConnected = false
+		for numOfAttempts <= MaxNumberOfConnAttempts {
 			n.conn, err = net.Dial(protocol, address)
-			numOfAttempts--
+			if err == nil {
+				isConnected = true
+				break
+			}
+			numOfAttempts++
 		}
-		tinylogging.AddError("Error dialing: ", address, protocol, err.Error())
-	} else {
-		go n.receiveMessages()
+		if !isConnected {
+			tinylogging.AddError("Error dialing: ", address, protocol, err.Error(), numOfAttempts, " attempts.")
+			return err
+		}
 	}
+
+	go n.receiveMessages()
+
 	return err
+}
+
+func (n *node) IsConnectedToQueue() bool {
+	return n.conn != nil
 }
 
 // Sends message to the queue

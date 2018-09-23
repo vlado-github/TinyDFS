@@ -28,7 +28,6 @@ type host struct {
 	node           messaging.Node
 	electionID     int
 	timeoutHandler consensus.TimeoutHandler
-	isQueue        bool
 	connParams     messaging.ConnParams
 
 	term          int
@@ -38,8 +37,8 @@ type host struct {
 }
 
 // NewHost creates a new instance of host
-func NewHost(connParams messaging.ConnParams, broadcastConnParams messaging.ConnParams, isQueue bool, port string) Host {
-	node := messaging.NewNode(connParams, broadcastConnParams, isQueue, port)
+func NewHost(connParams messaging.ConnParams, broadcastConnParams messaging.ConnParams, port string) Host {
+	node := messaging.NewNode(connParams, broadcastConnParams, port)
 	hostIP, _ := node.GetIP()
 	hostPort := node.GetPort()
 	term := 0
@@ -47,12 +46,11 @@ func NewHost(connParams messaging.ConnParams, broadcastConnParams messaging.Conn
 	electionID := rand.Int()
 	lastVotes := make(map[string]int)
 	lastHeartbeat := uuid.New()
-	timeoutHandler := consensus.NewTimeoutHandler(electionID, hostIP, hostPort, node.GetID(), isQueue)
+	timeoutHandler := consensus.NewTimeoutHandler(electionID, hostIP, hostPort, node.GetID())
 	return &host{
 		node,
 		electionID,
 		timeoutHandler,
-		isQueue,
 		connParams,
 		term,
 		voteCount,
@@ -121,11 +119,12 @@ func (h *host) registerHandlers() {
 	onLeaderElectedCallback := func() {
 		leaderInfo := h.timeoutHandler.GetLeaderInfo()
 		if leaderInfo != nil {
-			//if h.GetID().String() != leaderInfo.GetNodeID() {
-			//TODO: needs to check if already connected to leader
-			h.CloseConnToQueue()
-			h.ConnectToLeaderQueue()
-			//}
+			if h.GetID().String() != leaderInfo.GetNodeID() {
+				if h.node.IsConnectedToQueue() {
+					h.CloseConnToQueue()
+					h.ConnectToLeaderQueue()
+				}
+			}
 		}
 	}
 	h.timeoutHandler.RegisterOnLeaderElectedHandler(onLeaderElectedCallback)

@@ -4,6 +4,7 @@ import (
 	"messaging"
 	"time"
 	"tinylogging"
+
 	"github.com/google/uuid"
 )
 
@@ -30,30 +31,30 @@ type TimeoutHandler interface {
 }
 
 type timeouthandler struct {
-	networkRegistry			  NetworkRegistry
-	handlersRegistry		  HandlersRegistry
-	sendMessage				  func(message messaging.Message)
+	networkRegistry           NetworkRegistry
+	handlersRegistry          HandlersRegistry
+	sendMessage               func(message messaging.Message)
 	sendVoteOnElectionTimeout EventHandlerFunc
 	sendOnHeartbeatTimeout    EventHandlerFunc
-	onLeaderElected	          EventHandlerFunc
+	onLeaderElected           EventHandlerFunc
 	timer                     *time.Timer
 	heartbeat                 *time.Timer
 	stateMachine              StateMachine
-	voteCount     			  int
-	lastVotes     			  map[string]int
-	lastHeartbeat 			  uuid.UUID
-	term 			          int
+	voteCount                 int
+	lastVotes                 map[string]int
+	lastHeartbeat             uuid.UUID
+	term                      int
 	numOfNodes                int
 	electionID                int
-	hostID 		              uuid.UUID
-	hostIP					  string
+	hostID                    uuid.UUID
+	hostIP                    string
 	hostPort                  string
-	isQueue					  bool
+	isQueue                   bool
 	leaderInfo                LeaderInfo
 }
 
 // NewTimeoutHandler creates new instance of TimeoutHandler
-func NewTimeoutHandler(electionID int, hostIP string, hostPort string, hostID uuid.UUID, isQueue bool) TimeoutHandler {
+func NewTimeoutHandler(electionID int, hostIP string, hostPort string, hostID uuid.UUID) TimeoutHandler {
 	voteCount := 0
 	lastVotes := make(map[string]int)
 	lastHeartbeat := uuid.New()
@@ -63,18 +64,17 @@ func NewTimeoutHandler(electionID int, hostIP string, hostPort string, hostID uu
 	th := &timeouthandler{
 		sendVoteOnElectionTimeout: NewEventHandlerFunc(),
 		sendOnHeartbeatTimeout:    NewEventHandlerFunc(),
-		onLeaderElected:		   NewEventHandlerFunc(),
-		stateMachine: stateMachine,
-		voteCount: voteCount,
-		lastVotes: lastVotes,
-		lastHeartbeat: lastHeartbeat,
-		numOfNodes: numOfNodes,
-		term: term,
-		electionID: electionID,
-		hostID: hostID,
-		hostIP: hostIP,
-		hostPort: hostPort,
-		isQueue: isQueue,
+		onLeaderElected:           NewEventHandlerFunc(),
+		stateMachine:              stateMachine,
+		voteCount:                 voteCount,
+		lastVotes:                 lastVotes,
+		lastHeartbeat:             lastHeartbeat,
+		numOfNodes:                numOfNodes,
+		term:                      term,
+		electionID:                electionID,
+		hostID:                    hostID,
+		hostIP:                    hostIP,
+		hostPort:                  hostPort,
 	}
 	th.handlersRegistry = NewHandlersRegistry(th)
 	th.registerHandler(ELECTIONTIMEOUT, th.handlersRegistry.GetTimeoutHandler(ELECTIONTIMEOUT))

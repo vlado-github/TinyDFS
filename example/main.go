@@ -8,6 +8,7 @@ import (
 	"strings"
 	"tinydfs"
 	"tinylogging"
+	"utils"
 
 	"github.com/google/uuid"
 )
@@ -52,8 +53,13 @@ func getParams() []string {
 }
 
 func startHost(port string, broadcastQueueIP string, broadcastQueuePort string) tinydfs.Host {
+	var deviceIP, err = utils.GetDeviceIpAddress()
+	if err != nil {
+		fmt.Println("Warning: Device IP not found.'")
+		deviceIP = "localhost"
+	}
 	var connParams = messaging.ConnParams{
-		Ip:       "localhost",
+		Ip:       deviceIP,
 		Port:     port,
 		Protocol: "tcp",
 	}
@@ -64,7 +70,7 @@ func startHost(port string, broadcastQueueIP string, broadcastQueuePort string) 
 		Protocol: "tcp",
 	}
 
-	var host = tinydfs.NewHost(connParams, broadcastConnParams, true, port)
+	var host = tinydfs.NewHost(connParams, broadcastConnParams, port)
 	onConnClosedCallback := func() {
 		var message = messaging.Message{Key: uuid.New(), Topic: "ConnClose for node: " + host.GetID().String()}
 		host.SendMessage(message)

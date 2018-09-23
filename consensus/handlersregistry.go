@@ -53,6 +53,7 @@ func NewHandlersRegistry(th *timeouthandler) HandlersRegistry {
 				var filtered []NetworkTuple
 				for i := range ipAddresses {
 					if ipAddresses[i] != "" {
+
 						host, port, _ := net.SplitHostPort(ipAddresses[i])
 						tuple := NewNetworkTuple(host, port)
 						filtered = append(filtered, tuple)
