@@ -40,7 +40,7 @@ func (nr *networkregistry) GetItems() []NetworkTuple {
 		return nr.networkTuples
 	}
 	sort.Slice(nr.networkTuples[:], func(i, j int) bool {
-		return nr.networkTuples[i].GetIP() < nr.networkTuples[j].GetIP()
+		return nr.networkTuples[i].GetPort() < nr.networkTuples[j].GetPort()
 	})
 	return nr.networkTuples
 }

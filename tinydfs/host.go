@@ -90,7 +90,7 @@ func (h *host) ConnectToNextAvailableQueue() error {
 			tuples := networkRegistry.GetItems()
 			for i := range tuples {
 				item := tuples[i]
-				if item.GetIP() != leaderInfo.GetIP() {
+				if item.GetIP() != leaderInfo.GetIP() && item.GetPort() != leaderInfo.GetPort() {
 					return h.node.ConnectToQueue(h.connParams.Protocol, item.GetIP()+":"+item.GetPort())
 				}
 			}
@@ -103,7 +103,7 @@ func (h *host) ConnectToNextAvailableQueue() error {
 // Opens connection to elected leader's queue
 func (h *host) ConnectToLeaderQueue() error {
 	leaderInfo := h.timeoutHandler.GetLeaderInfo()
-	return h.node.ConnectToQueue(h.connParams.Protocol, leaderInfo.GetIP()+":"+h.connParams.Port)
+	return h.node.ConnectToQueue(h.connParams.Protocol, leaderInfo.GetIP()+":"+leaderInfo.GetPort())
 }
 
 // Closes connection to current queue

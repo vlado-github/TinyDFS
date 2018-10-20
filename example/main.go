@@ -21,6 +21,8 @@ func main() {
 	tinylogging.SetConfiguration(tinylogging.TRACE, "../bin/log")
 
 	// if console run command follows argument "-p 3334 -queue 192.168.1.55 3333"
+	// -p: is a port of a working node's queue
+	// -queue: connect to main queue for messaging
 	var params = getParams()
 
 	// start a node and display info
@@ -34,7 +36,6 @@ func main() {
 
 func getParams() []string {
 	params := make([]string, 3)
-	fmt.Println(len(os.Args))
 	if len(os.Args) > 1 {
 		arg0 := os.Args[1]
 		arg1 := os.Args[2]

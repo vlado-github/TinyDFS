@@ -18,18 +18,18 @@ type LeaderInfo interface {
 }
 
 type leaderinfomessagepayload struct {
-	IP 		   string `json:"ip"`
+	IP         string `json:"ip"`
 	Port       string `json:"port"`
 	Term       int    `json:"term"`
-	ElectionID int `json:"election_id"`
+	ElectionID int    `json:"election_id"`
 	NodeID     string `json:"node_id"`
 }
 
 // NewLeaderInfo creates new instance of the message payload for vote
 func NewLeaderInfo(ip string, port string, term int, electionID int, nodeID string) LeaderInfo {
 	return &leaderinfomessagepayload{
-		IP: ip,
-		Port: port,
+		IP:         ip,
+		Port:       port,
 		Term:       term,
 		ElectionID: electionID,
 		NodeID:     nodeID,
@@ -39,8 +39,8 @@ func NewLeaderInfo(ip string, port string, term int, electionID int, nodeID stri
 // EmptyLeaderInfo returns new instance of the message with temporary data set
 func EmptyLeaderInfo() LeaderInfo {
 	return &leaderinfomessagepayload{
-		IP: "",
-		Port: "",
+		IP:         "",
+		Port:       "",
 		Term:       -1,
 		ElectionID: -1,
 		NodeID:     "",

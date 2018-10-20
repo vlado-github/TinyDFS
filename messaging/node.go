@@ -54,9 +54,8 @@ func NewNode(conn ConnParams, broadcastQueueConn ConnParams, port string) Node {
 	fm := persistance.NewFileManager(getCurrentDirectory() + "//" + uniqueID.String())
 	var msgQueue = NewQueue(conn)
 
-	var p string
 	if port == "" {
-		p = DefaultPort
+		port = DefaultPort
 	}
 
 	return &node{
@@ -68,7 +67,7 @@ func NewNode(conn ConnParams, broadcastQueueConn ConnParams, port string) Node {
 		onQueueConnectionClosedHandler: NewNodeHandlerFunc(),
 		onConnectionClosedHandler:      NewNodeHandlerFunc(),
 		onMessageReceivedHandler:       NewMessageHandlerFunc(),
-		port: p,
+		port: port,
 	}
 }
 
