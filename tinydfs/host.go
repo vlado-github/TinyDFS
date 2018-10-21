@@ -4,9 +4,14 @@ import (
 	"consensus"
 	"math/rand"
 	"messaging"
+	"tinylogging"
 
 	"github.com/google/uuid"
 )
+
+// This is a flag to distinct between explicit call
+// and application (leader) crash
+var isConnCloseExplicit = false
 
 // Host is a single unit of distributed storage.
 // It's composed of Node instance that allows messaging and persistance
@@ -83,31 +88,39 @@ func (h *host) SendMessage(message messaging.Message) {
 
 // For case a leader is unaccessable next queue for messaging is selected.
 func (h *host) ConnectToNextAvailableQueue() error {
-	leaderInfo := h.timeoutHandler.GetLeaderInfo()
-	networkRegistry := h.timeoutHandler.GetNetworkRegistry()
-	if leaderInfo != nil {
+	if !isConnCloseExplicit {
+		isConnCloseExplicit = false
+		tinylogging.AddTrace("next queue")
+		leaderInfo := h.timeoutHandler.GetLeaderInfo()
+		networkRegistry := h.timeoutHandler.GetNetworkRegistry()
 		if networkRegistry != nil {
 			tuples := networkRegistry.GetItems()
 			for i := range tuples {
 				item := tuples[i]
-				if item.GetIP() != leaderInfo.GetIP() && item.GetPort() != leaderInfo.GetPort() {
+				if item.GetIP() != leaderInfo.GetIP() || item.GetPort() != leaderInfo.GetPort() {
+					tinylogging.AddTrace("NextQueue connect:", item.GetIP(), item.GetPort(), h.connParams.Protocol)
 					return h.node.ConnectToQueue(h.connParams.Protocol, item.GetIP()+":"+item.GetPort())
 				}
 			}
 		}
-
 	}
+	isConnCloseExplicit = false
 	return nil
 }
 
 // Opens connection to elected leader's queue
 func (h *host) ConnectToLeaderQueue() error {
 	leaderInfo := h.timeoutHandler.GetLeaderInfo()
-	return h.node.ConnectToQueue(h.connParams.Protocol, leaderInfo.GetIP()+":"+leaderInfo.GetPort())
+	err := h.node.ConnectToQueue(h.connParams.Protocol, leaderInfo.GetIP()+":"+leaderInfo.GetPort())
+	if err == nil {
+		tinylogging.AddTrace("***** CONNECTED TO LEADER *****")
+	}
+	return err
 }
 
 // Closes connection to current queue
 func (h *host) CloseConnToQueue() error {
+	isConnCloseExplicit = true
 	return h.node.CloseConn()
 }
 
@@ -119,12 +132,8 @@ func (h *host) registerHandlers() {
 	onLeaderElectedCallback := func() {
 		leaderInfo := h.timeoutHandler.GetLeaderInfo()
 		if leaderInfo != nil {
-			if h.GetID().String() != leaderInfo.GetNodeID() {
-				if h.node.IsConnectedToQueue() {
-					h.CloseConnToQueue()
-					h.ConnectToLeaderQueue()
-				}
-			}
+			h.CloseConnToQueue()
+			h.ConnectToLeaderQueue()
 		}
 	}
 	h.timeoutHandler.RegisterOnLeaderElectedHandler(onLeaderElectedCallback)

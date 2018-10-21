@@ -20,6 +20,7 @@ type Node interface {
 	SendMessage(message Message)
 	ConnectToQueue(protocol string, address string) error
 	IsConnectedToQueue() bool
+	IsConnectedToSpecificQueue(ip string, port string) bool
 	CloseConn() error
 
 	GetID() uuid.UUID
@@ -81,7 +82,7 @@ func (n *node) GetIP() (string, error) {
 	ipAddress := ""
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
-		tinylogging.AddError("Retrieving host's IP address failed.", err.Error())
+		tinylogging.AddError("[Node] Retrieving host's IP address failed.", err.Error())
 	}
 
 	for _, a := range addrs {
@@ -131,7 +132,7 @@ func (n *node) ConnectToQueue(protocol string, address string) error {
 			numOfAttempts++
 		}
 		if !isConnected {
-			tinylogging.AddError("Error dialing: ", address, protocol, err.Error(), numOfAttempts, " attempts.")
+			tinylogging.AddError("[Node] Error dialing: ", address, protocol, err.Error(), numOfAttempts, " attempts.")
 			return err
 		}
 	}
@@ -145,10 +146,25 @@ func (n *node) IsConnectedToQueue() bool {
 	return n.conn != nil
 }
 
+func (n *node) IsConnectedToSpecificQueue(ip string, port string) bool {
+	if n.conn == nil {
+		return false
+	}
+	tinylogging.AddTrace("IsConn:", n.conn.LocalAddr().String(), ip+":"+port)
+	if n.conn.LocalAddr().String() == ip+":"+port {
+		return true
+	}
+	return false
+}
+
 // Sends message to the queue
 func (n *node) SendMessage(message Message) {
-	encoder := json.NewEncoder(n.conn)
-	encodeMessage(&message, encoder)
+	if n.conn == nil {
+		tinylogging.AddError("[Node] Error:", "SendMessage failed. Connection is NULL.")
+	} else {
+		encoder := json.NewEncoder(n.conn)
+		encodeMessage(&message, encoder)
+	}
 }
 
 // Receives messages from the queue
@@ -158,7 +174,7 @@ func (n *node) receiveMessages() {
 		var message Message
 		err := decodeMessage(&message, decoder)
 		if err != nil {
-			tinylogging.AddError("Error: Decoding received message.", err.Error())
+			tinylogging.AddError("[Node] Error: Decoding received message.", err.Error())
 			break
 		} else {
 			tinylogging.AddInfo("[Client] Received: ", message.Topic, string(message.Payload))

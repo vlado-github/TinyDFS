@@ -32,10 +32,10 @@ func NewHandlersRegistry(th *timeouthandler) HandlersRegistry {
 				th.ResetHeartbeatTime()
 				// if any node receives reset election timeout
 				th.ResetElectionTime()
+				// save Heartbeat key
+				th.lastHeartbeat = message.Key
 				// reply
 				th.sendMessage(message)
-				// save Heartbeat ket
-				th.lastHeartbeat = message.Key
 			}
 		} else if message.Topic == messaging.CLIENT_CONN_OPENED || message.Topic == messaging.CLIENT_CONN_CLOSED {
 			tinylogging.AddTrace(message.Topic)
@@ -57,34 +57,10 @@ func NewHandlersRegistry(th *timeouthandler) HandlersRegistry {
 						host, port, _ := net.SplitHostPort(ipAddresses[i])
 						tuple := NewNetworkTuple(host, port)
 						filtered = append(filtered, tuple)
-						//tinylogging.AddTrace(host)
 					}
 				}
 				registry := NewNetworkRegistry(filtered)
 				th.SetNetworkRegistry(registry)
-
-				// notify others about new registry
-				payload, err := json.Marshal(registry)
-				if err != nil {
-					tinylogging.AddError("[Host] onMessageReceivedCallback ", err.Error())
-				} else {
-					message := messaging.Message{
-						Topic:   NEW_REGISTRY,
-						Key:     uuid.New(),
-						Payload: payload,
-					}
-					th.sendMessage(message)
-				}
-			}
-		} else if message.Topic == NEW_REGISTRY {
-			tinylogging.AddTrace(message.Topic)
-			registryPayload := EmptyNetworkRegistry()
-			err := registryPayload.ToPayload(message.Payload)
-			if err != nil {
-				tinylogging.AddError("[Host] onMessageReceivedCallback ", err.Error())
-			} else {
-				// updates network discovery register
-				th.SetNetworkRegistry(registryPayload)
 			}
 		} else if message.Topic == LEADER_INFO {
 			tinylogging.AddTrace(message.Topic)
@@ -93,9 +69,11 @@ func NewHandlersRegistry(th *timeouthandler) HandlersRegistry {
 			if err != nil {
 				tinylogging.AddError("[Host] onMessageReceivedCallback ", err.Error())
 			} else {
-				th.SetLeaderInfo(leaderInfoPayload)
+				if leaderInfoPayload.GetElectionID() != th.GetElectionID() {
+					th.SetLeaderInfo(leaderInfoPayload)
+					th.onLeaderElected()
+				}
 				th.ResetElectionTime()
-				th.onLeaderElected()
 			}
 		} else if message.Topic == LEADER_VOTE {
 			tinylogging.AddTrace(message.Topic)
@@ -153,6 +131,12 @@ func NewHandlersRegistry(th *timeouthandler) HandlersRegistry {
 								}
 								th.sendMessage(message)
 							}
+
+							// renew queue connections
+							// todo: (unlikely) possibiltiy for race condition in case
+							// some node connects to leader queue before leader renews connections
+							th.SetLeaderInfo(newLeaderInfo)
+							th.onLeaderElected()
 						}
 					}
 				}
