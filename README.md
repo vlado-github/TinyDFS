@@ -5,8 +5,7 @@ A learning project.
 Building a simple distributed database from ground up.
 
 - Database is key-value based and uses files for storage.
-- Database can also be used as general file distributed storage. 
-- The file data should be kept in more than one node. 
+- The file data are kept in more than one node. 
 - Implements a consistency policy for reads and writes. 
 - Tackless the problem of how keeping data in more than one node helps to provide fault tolerance. 
 
