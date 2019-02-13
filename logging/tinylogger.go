@@ -8,7 +8,27 @@ import (
 	"sync"
 )
 
-const pathToLogDir = "../tinydfs/log"
+// VerbosityLevelType how many details on a console
+type VerbosityLevelType int
+
+const (
+	ALL     VerbosityLevelType = iota
+	TRACE   VerbosityLevelType = iota
+	INFO    VerbosityLevelType = iota
+	ERROR   VerbosityLevelType = iota
+	WARNING VerbosityLevelType = iota
+	NONE    VerbosityLevelType = iota
+)
+
+// Configuration represents the variables
+// used by logger
+type Configuration struct {
+	pathToLogDir string
+	verbose      VerbosityLevelType
+}
+
+// Config contains info on logger configuration
+var config = &Configuration{verbose: ALL, pathToLogDir: "."}
 
 type tinylogger struct {
 	Trace   *log.Logger
@@ -20,8 +40,6 @@ type tinylogger struct {
 	InfoLogFile    *os.File
 	WarningLogFile *os.File
 	ErrorLogFile   *os.File
-
-	Verbose bool
 }
 
 var instance *tinylogger
@@ -59,30 +77,30 @@ func getInstance() *tinylogger {
 func AddTrace(v ...interface{}) {
 	tl := getInstance()
 	tl.Trace.Println(v)
-	postLog("TRACE: ", v)
+	postLog(TRACE, "TRACE: ", v)
 }
 
 func AddInfo(v ...interface{}) {
 	tl := getInstance()
 	tl.Info.Println(v)
-	postLog("INFO:", v)
+	postLog(INFO, "INFO:", v)
 }
 
 func AddWarning(v ...interface{}) {
 	tl := getInstance()
 	tl.Warning.Println(v)
-	postLog("WARN: ", v)
+	postLog(WARNING, "WARN: ", v)
 }
 
 func AddError(v ...interface{}) {
 	tl := getInstance()
 	tl.Error.Println(v)
-	postLog("ERROR: ", v)
+	postLog(ERROR, "ERROR: ", v)
 }
 
-func SetVerbose(verbose bool) {
-	tl := getInstance()
-	tl.Verbose = verbose
+// SetConfiguration is used to setup config variables
+func SetConfiguration(verboseType VerbosityLevelType, pathToDir string) {
+	config = &Configuration{verbose: verboseType, pathToLogDir: pathToDir}
 }
 
 func Close() {
@@ -94,12 +112,12 @@ func Close() {
 }
 
 func createDestinationFile(filename string) *os.File {
-	err := os.MkdirAll(pathToLogDir, os.ModePerm)
+	err := os.MkdirAll(config.pathToLogDir, os.ModePerm)
 	if err != nil {
 		fmt.Println("Persistance: Can not create a directory.", err.Error())
 		log.Fatal(err)
 	}
-	pathToFile := path.Clean(path.Join(pathToLogDir, filename))
+	pathToFile := path.Clean(path.Join(config.pathToLogDir, filename))
 	logFile, err := os.OpenFile(pathToFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		fmt.Println("error creating log file:", err)
@@ -107,9 +125,10 @@ func createDestinationFile(filename string) *os.File {
 	return logFile
 }
 
-func postLog(v ...interface{}) {
-	tl := getInstance()
-	if tl.Verbose {
-		fmt.Println(v)
+func postLog(verbosityLevel VerbosityLevelType, logText ...interface{}) {
+	if config.verbose == ALL {
+		fmt.Println(logText)
+	} else if verbosityLevel == config.verbose || verbosityLevel == ERROR {
+		fmt.Println(logText)
 	}
 }
