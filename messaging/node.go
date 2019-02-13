@@ -17,11 +17,11 @@ import (
 type Node interface {
 	Run() error
 	SendMessage(message Message)
+	ConnectToQueue(protocol string, address string) error
 	CloseConn() error
 
 	GetID() uuid.UUID
 	GetElectionID() int
-	GetIP() (string, error)
 
 	RegisterHandler(HandlerType, NodeHandlerFunc)
 }
@@ -29,32 +29,33 @@ type Node interface {
 type node struct {
 	id                        uuid.UUID
 	electionID                int
-	connParams                ConnParams
+	broadcastQueueConnParams  ConnParams
+	exchangeQueueConnParams   ConnParams
 	conn                      net.Conn
 	fileManager               persistance.FileManager
-	isMaster                  bool
 	queue                     MessageQueue
 	onConnectionClosedHandler NodeHandlerFunc
+	persistanceEnabled        bool
 }
 
+const MaxNumberOfConnAttempts int = 10
+
 // NewNode creates new instance of node
-func NewNode(conn ConnParams, master bool) Node {
+func NewNode(exchangeQueueConn ConnParams, broadcastQueueConn ConnParams, persistanceEnabled bool) Node {
 	rand.Seed(time.Now().Unix())
 	uniqueID := uuid.New()
 	randomID := rand.Int()
 	fm := persistance.NewFileManager(getCurrentDirectory() + "//" + uniqueID.String())
-	var msgQueue MessageQueue
-	if master {
-		msgQueue = NewQueue(conn)
-	}
+	msgQueue := NewQueue(exchangeQueueConn)
 
 	return &node{
-		id:          uniqueID,
-		electionID:  randomID,
-		connParams:  conn,
-		fileManager: fm,
-		isMaster:    master,
-		queue:       msgQueue,
+		id:                       uniqueID,
+		electionID:               randomID,
+		exchangeQueueConnParams:  exchangeQueueConn,
+		fileManager:              fm,
+		broadcastQueueConnParams: broadcastQueueConn,
+		persistanceEnabled:       persistanceEnabled,
+		queue:                    msgQueue,
 		onConnectionClosedHandler: NewHandlerFunc(),
 	}
 }
@@ -69,41 +70,44 @@ func (n *node) GetElectionID() int {
 	return n.electionID
 }
 
-// Return current IP address of the device
-func (n *node) GetIP() (string, error) {
-	ipAddress := ""
-	addrs, err := net.InterfaceAddrs()
-	if err != nil {
-		logging.AddError("Retrieving host's IP address failed.", err.Error())
-	}
-
-	for _, a := range addrs {
-		if ipnet, ok := a.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-			if ipnet.IP.To4() != nil {
-				ipAddress = ipnet.IP.String()
-			}
-		}
-	}
-
-	return ipAddress, err
-}
-
 // If node is master than starts a queue
 // Runs node and connects to the queue
 func (n *node) Run() error {
-	if n.isMaster {
-		go n.queue.Run()
-	}
+	// run exchange queue
+	go n.queue.Run()
 
-	// connects to queue
+	// connects to broadcast queue
+	return n.ConnectToQueue(n.broadcastQueueConnParams.Protocol, n.broadcastQueueConnParams.Ip+":"+n.broadcastQueueConnParams.Port)
+}
+
+// Connects to queue
+func (n *node) ConnectToQueue(protocol string, address string) error {
+	if n.conn != nil {
+		n.conn.Close()
+	}
+	numOfAttempts := 0
 	var err error
-	n.conn, err = net.Dial(n.connParams.Protocol, n.connParams.Ip+":"+n.connParams.Port)
+	n.conn, err = net.Dial(protocol, address)
+	numOfAttempts++
 
 	if err != nil {
-		logging.AddError("Error dialing:", err.Error())
-	} else {
-		go n.receiveMessages()
+		var isConnected = false
+		for numOfAttempts <= MaxNumberOfConnAttempts {
+			n.conn, err = net.Dial(protocol, address)
+			if err == nil {
+				isConnected = true
+				break
+			}
+			numOfAttempts++
+		}
+		if !isConnected {
+			logging.AddError("[Node] Error dialing: ", address, protocol, err.Error(), numOfAttempts, " attempts.")
+			return err
+		}
 	}
+
+	go n.receiveMessages()
+
 	return err
 }
 

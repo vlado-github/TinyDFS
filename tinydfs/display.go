@@ -17,8 +17,4 @@ func printWelcome() {
 func printInfo(n messaging.Node) {
 	fmt.Println(">>> ID: " + n.GetID().String())
 	fmt.Println(">>> Election ID: " + strconv.Itoa(n.GetElectionID()))
-	ip, err := n.GetIP()
-	if err == nil {
-		fmt.Println(">>> IP Address: " + ip)
-	}
 }

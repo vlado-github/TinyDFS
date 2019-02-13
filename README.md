@@ -26,7 +26,7 @@ Run the build script within repository directory:
 Follow these steps:
 - open terminal and from **bin** directory run command
 ```bash
-./tinydfs master
+./tinydfs -listen <port> -broadcast <local_ip> <port>
 ```
 
 ## Tests
