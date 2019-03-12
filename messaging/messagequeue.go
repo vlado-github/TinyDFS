@@ -2,8 +2,8 @@ package messaging
 
 import (
 	"encoding/json"
-	"fmt"
 	"logging"
+
 	"net"
 	"os"
 	"sync"
@@ -22,11 +22,11 @@ type MessageQueue interface {
 }
 
 type messagequeue struct {
-	connParams                    ConnParams
-	pool                          Pool
-	messageBuffer                 map[string]Message
-	onNodeConnectionOpenedHandler MsgQueueHandlerFunc
-	onNodeConnectionClosedHandler MsgQueueHandlerFunc
+	connParams        ConnParams
+	pool              Pool
+	messageBuffer     map[string]Message
+	onMessageReceived MsgQueueHandlerFunc
+	networkRegistry   NetworkRegistry
 }
 
 var mutex = &sync.Mutex{}
@@ -34,16 +34,16 @@ var mutex = &sync.Mutex{}
 // NewQueue creates new instance of the message queue
 func NewQueue(conn ConnParams) MessageQueue {
 	return &messagequeue{
-		connParams:                    conn,
-		onNodeConnectionOpenedHandler: NewMsgQueueHandlerFunc(),
-		onNodeConnectionClosedHandler: NewMsgQueueHandlerFunc(),
+		connParams:        conn,
+		onMessageReceived: NewMsgQueueHandlerFunc(),
 	}
 }
 
+// Cretes instance of message buffer, connection pool and network registry
 func (queue *messagequeue) init() {
-	// Cretes instance of message buffer and connection pool
 	queue.messageBuffer = make(map[string]Message)
 	queue.pool.conns = make(map[string]net.Conn)
+	queue.networkRegistry = NewNetworkRegistry()
 }
 
 // Starts the queue and listens for incoming connections
@@ -58,23 +58,16 @@ func (queue *messagequeue) Run() {
 	defer l.Close()
 
 	logging.AddInfo("[Queue] Listening on " + queue.connParams.Ip + ":" + queue.connParams.Port)
-	fmt.Println("[Queue] Listening on " + queue.connParams.Ip + ":" + queue.connParams.Port)
 	for {
 		// Listen for an incoming connection.
 		conn, err := l.Accept()
 		var poolKey = uuid.New().String()
 		queue.pool.conns[poolKey] = conn
-		queue.Status()
 		if err != nil {
 			logging.AddError("[Queue] Error accepting: ", err.Error())
-			queue.onNodeConnectionClosedHandler(queue)
 			os.Exit(1)
 		}
-		queue.onNewConnection()
-
-		var message = Message{Key: uuid.New(), Topic: "CONN_ACK", Text: "CONN_ACK"}
-		encoder := json.NewEncoder(conn)
-		encodeMessage(&message, encoder)
+		queue.onNewConnection(conn)
 
 		go queue.receiveMessage(conn, poolKey)
 		go queue.sendingMessages()
@@ -91,19 +84,30 @@ func (queue *messagequeue) receiveMessage(conn net.Conn, poolKey string) {
 			logging.AddInfo("[Queue] Connection closed.")
 			conn.Close()
 			delete(queue.pool.conns, poolKey)
-			queue.Status()
+			queue.removeFromNetworkRegistry(conn)
 			break
 		}
 
-		mutex.Lock()
-		var key = uuid.New().String()
-		queue.messageBuffer[key] = Message{Key: message.Key, Topic: message.Topic, Text: message.Text}
-		logging.AddInfo("[Queue] Message Received:", queue.messageBuffer[key].Text)
-		mutex.Unlock()
+		if message.Topic == CONN_ACK_REPLY {
+			logging.AddInfo("[Queue] Message Received:", message.Topic, string(message.Payload))
+			queue.onNewNetworkNode(message)
+		} else {
+			key := queue.addMessage(message)
+			logging.AddInfo("[Queue] Message Received:", string(queue.messageBuffer[key].Payload))
+		}
 	}
 }
 
-// Sends messages from buffer to all clients
+// Adds received message to buffer
+func (queue *messagequeue) addMessage(message Message) string {
+	mutex.Lock()
+	var key = uuid.New().String()
+	queue.messageBuffer[key] = message
+	mutex.Unlock()
+	return key
+}
+
+// Sends messages from buffer to all nodes
 func (queue *messagequeue) sendingMessages() {
 	for {
 		mutex.Lock()
@@ -112,7 +116,7 @@ func (queue *messagequeue) sendingMessages() {
 				if conn != nil {
 					encoder := json.NewEncoder(conn)
 					encodeMessage(&message, encoder)
-					logging.AddInfo("[Queue] Sending: ", message.Text+"\n")
+					logging.AddInfo("[Queue] Sending: ", string(message.Payload)+"\n")
 				}
 			}
 			delete(queue.messageBuffer, index)
@@ -121,10 +125,14 @@ func (queue *messagequeue) sendingMessages() {
 	}
 }
 
+// Prints current network status
 func (queue *messagequeue) Status() {
-	fmt.Println("[Queue] Total connections:", len(queue.pool.conns))
+	logging.AddInfo("[Queue] Total connections:", len(queue.pool.conns))
+	networkList, _ := queue.networkRegistry.ToString()
+	logging.AddInfo("[Queue] NetworkRegistry: ", networkList)
 }
 
+// Closes all connections to nodes
 func (queue *messagequeue) Close() error {
 	for _, conn := range queue.pool.conns {
 		if conn != nil {
@@ -135,23 +143,49 @@ func (queue *messagequeue) Close() error {
 	return nil
 }
 
-func (queue *messagequeue) onNewConnection() {
+// Sends connection ack message to node
+func (queue *messagequeue) onNewConnection(conn net.Conn) {
 	logging.AddInfo("[Queue] Client Connected...")
-	queue.onNodeConnectionOpenedHandler(queue)
+	var message = Message{Key: uuid.New(), Topic: CONN_ACK, Payload: []byte(conn.RemoteAddr().String())}
+	encoder := json.NewEncoder(conn)
+	encodeMessage(&message, encoder)
+}
+
+// Adds new node info to network registry
+func (queue *messagequeue) onNewNetworkNode(message Message) {
+	var networkTuple *networktuple
+	err := json.Unmarshal(message.Payload, &networkTuple)
+	if err != nil {
+		logging.AddError("Message has invalid format.", err.Error())
+	}
+	queue.networkRegistry.AddItem(networkTuple)
+	queue.onNetworkChanged()
+}
+
+// Notfies all nodes in network about network change
+func (queue *messagequeue) onNetworkChanged() {
+	queue.Status()
+	payload, err := queue.networkRegistry.ToByteArray()
+	if err != nil {
+		logging.AddError("Json serialization failed.", err.Error())
+	}
+	logging.AddInfo(string(payload))
+	var message = Message{Key: uuid.New(), Topic: NETWORK_CHANGED, Payload: payload}
+	queue.addMessage(message)
+}
+
+// Remove closed node from network registry
+func (queue *messagequeue) removeFromNetworkRegistry(conn net.Conn) {
+	_, port, _ := net.SplitHostPort(conn.RemoteAddr().String())
+	networkItem, index := queue.networkRegistry.GetItemByRemoteAddPort(port)
+	if networkItem != nil {
+		queue.networkRegistry.RemoveItem(index)
+	}
+	queue.onNetworkChanged()
 }
 
 func (queue *messagequeue) RegisterHandler(handlerType HandlerType, handlerFunc MsgQueueHandlerFunc) {
 	switch handlerType {
-	case NODECONNOPENED:
-		{
-			queue.onNodeConnectionOpenedHandler = handlerFunc
-			break
-		}
-	case NODECONNCLOSED:
-		{
-			queue.onNodeConnectionClosedHandler = handlerFunc
-			break
-		}
 	default:
 		{
 			break

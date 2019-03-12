@@ -8,4 +8,6 @@ const (
 	NODECONNCLOSED HandlerType = iota
 	// NODECONNOPENED type
 	NODECONNOPENED HandlerType = iota
+	// NETWORKCHANGED type
+	NETWORKCHANGED HandlerType = iota
 )

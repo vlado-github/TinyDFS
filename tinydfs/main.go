@@ -52,7 +52,7 @@ func getParams() []string {
 func startNode(port string, broadcastQueueIP string, broadcastQueuePort string) messaging.Node {
 	var deviceIP, err = utils.GetDeviceIpAddress()
 	if err != nil {
-		fmt.Println("Warning: Device IP not found.'")
+		logging.AddWarning("Warning: Device IP not found.'")
 		deviceIP = "localhost"
 	}
 	var connParams = messaging.ConnParams{
@@ -68,11 +68,6 @@ func startNode(port string, broadcastQueueIP string, broadcastQueuePort string) 
 	}
 
 	var n = messaging.NewNode(connParams, broadcastConnParams, true)
-	onConnClosedCallback := func(nn messaging.Node) {
-		var message = messaging.Message{Key: uuid.New(), Topic: "ConnClose for node: " + n.GetID().String(), Text: "Goodbye!"}
-		nn.SendMessage(message)
-	}
-	n.RegisterHandler(messaging.NODECONNCLOSED, onConnClosedCallback)
 	n.Run()
 	return n
 }
@@ -84,9 +79,9 @@ func runApp(n messaging.Node) {
 		text, _ := reader.ReadString('\n')
 		msgArgs := strings.Split(text, "#")
 		if len(msgArgs) != 2 {
-			fmt.Println("Error: Invalid input. Hint: 'sport#We're watching a match.'")
+			logging.AddError("Error: Invalid input. Hint: 'sport#We're watching a match.'")
 		} else {
-			var message = messaging.Message{Key: uuid.New(), Topic: msgArgs[0], Text: msgArgs[1]}
+			var message = messaging.Message{Key: uuid.New(), Topic: msgArgs[0], Payload: []byte(msgArgs[1])}
 			n.SendMessage(message)
 		}
 	}
