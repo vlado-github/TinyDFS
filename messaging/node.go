@@ -17,12 +17,11 @@ import (
 type Node interface {
 	Run() error
 	SendMessage(message Message)
-	ConnectToQueue(protocol string, address string) error
+	ConnectToQueue() error
 	CloseConn() error
 
 	GetID() uuid.UUID
 	GetElectionID() int
-	GetExchangeNetworkTuple() NetworkTuple
 
 	RegisterNodeHandler(HandlerType, NodeHandlerFunc)
 	RegisterQueueHandler(HandlerType, MsgQueueHandlerFunc)
@@ -77,11 +76,6 @@ func (n *node) GetElectionID() int {
 	return n.electionID
 }
 
-// Returns the Node exchange ip and port
-func (n *node) GetExchangeNetworkTuple() NetworkTuple {
-	return NewNetworkTuple(n.GetID().String(), n.exchangeQueueConnParams.Ip, n.exchangeQueueConnParams.Port)
-}
-
 // If node is master than starts a queue
 // Runs node and connects to the queue
 func (n *node) Run() error {
@@ -89,11 +83,13 @@ func (n *node) Run() error {
 	go n.queue.Run()
 
 	// connects to broadcast queue
-	return n.ConnectToQueue(n.broadcastQueueConnParams.Protocol, n.broadcastQueueConnParams.Ip+":"+n.broadcastQueueConnParams.Port)
+	return n.ConnectToQueue()
 }
 
 // Connects to queue
-func (n *node) ConnectToQueue(protocol string, address string) error {
+func (n *node) ConnectToQueue() error {
+	protocol := n.broadcastQueueConnParams.Protocol
+	address := n.broadcastQueueConnParams.Ip + ":" + n.broadcastQueueConnParams.Port
 	if n.conn != nil {
 		n.conn.Close()
 	}
@@ -115,6 +111,7 @@ func (n *node) ConnectToQueue(protocol string, address string) error {
 		}
 		if !isConnected {
 			logging.AddError("[Node] Error dialing: ", address, protocol, err.Error(), numOfAttempts, " attempts.")
+			n.retryNextQueue()
 			return err
 		}
 	}
@@ -138,19 +135,35 @@ func (n *node) receiveMessages() {
 		err := decodeMessage(&message, decoder)
 		if err != nil {
 			logging.AddError("Error: Queue connection is closed.", err.Error())
+			n.ConnectToQueue()
 			break
 		} else {
 			logging.AddInfo("[Client] Received: ", message.Topic, string(message.Payload))
 			if message.Topic == CONN_ACK {
 				n.onConnectionAcknowledged(message)
 			} else if message.Topic == NETWORK_CHANGED {
-
+				n.onNetworkChanged(message)
 			} else {
 				var guid = uuid.New()
 				var cmd = persistance.Command{Key: guid, Text: string(message.Payload), Topic: message.Topic}
 				n.fileManager.Write(cmd)
 			}
 		}
+	}
+}
+
+// In case that broadcast queue fails, we fetch next queue from the list and connect it
+func (n *node) retryNextQueue() {
+	n.networkRegistry.SetQueueUnresponsive(n.broadcastQueueConnParams.Ip, n.broadcastQueueConnParams.Port)
+	networkTuple := n.networkRegistry.GetNextQueue()
+	logging.AddTrace("Try to connect to next queue:", networkTuple.GetIP(), networkTuple.GetQueuePort())
+	if networkTuple != nil {
+		n.broadcastQueueConnParams = ConnParams{
+			Ip:       networkTuple.GetIP(),
+			Port:     networkTuple.GetQueuePort(),
+			Protocol: n.broadcastQueueConnParams.Protocol,
+		}
+		n.ConnectToQueue()
 	}
 }
 
@@ -179,7 +192,7 @@ func (n *node) onConnectionAcknowledged(message Message) {
 	ip, port, _ := net.SplitHostPort(string(message.Payload))
 	logging.AddInfo("[Client] Connected.", ip, port)
 	n.remoteAddressPort = port
-	networkTuple := NewNetworkTuple(n.GetID().String(), ip, port)
+	networkTuple := NewNetworkTuple(n.GetID().String(), ip, port, n.exchangeQueueConnParams.Port)
 	payload, err := json.Marshal(networkTuple)
 	if err != nil {
 		logging.AddError("Json serialization failed.", err)

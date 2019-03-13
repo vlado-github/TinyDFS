@@ -2,16 +2,19 @@ TinyDFS
 =======
 
 A learning project.
-Building a simple distributed database from ground up.
+TinyDFS is a distributed log storage.
 
-- Database is key-value based and uses files for storage.
+- Database is key-value and uses files for storage.
 - The file data are kept in more than one node. 
-- Implements a consistency policy for reads and writes. 
-- Tackless the problem of how keeping data in more than one node helps to provide fault tolerance. 
+- Consistency over all nodes is eventual. 
+- Distributed system has built-in fail over in case of a master queue fails. 
 
 ## Plans
 
-This project needs to provide evaluation results in terms of performance improvement due to storing data as well as the improved fault tolerance due to multi-node system.
+- All messages in a system must be encrypted.
+- Different databases on persistance layer could be supported if necessary interfaces are provided.
+- This project needs to provide evaluation results in terms of performance improvement due to storing data as well as the improved fault tolerance due to multi-node system.
+
 
 ## Build
 
@@ -25,7 +28,7 @@ Run the build script within repository directory:
 Follow these steps:
 - open terminal and from **bin** directory run command
 ```bash
-./tinydfs -listen <port> -broadcast <local_ip> <port>
+./tinydfs -listen <port> -connect <ip_address> <port>
 ```
 
 ## Tests

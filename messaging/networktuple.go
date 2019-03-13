@@ -5,20 +5,27 @@ type NetworkTuple interface {
 	GetIP() string
 	GetPort() string
 	GetId() string
+	GetQueuePort() string
+	GetAvailableStatus() bool
+	SetIsAvailable(bool)
 }
 
 type networktuple struct {
-	IpAddress string `json:"IpAddress"`
-	Port      string `json:"Port"`
-	Id        string `json:"Id"`
+	IpAddress   string `json:"IpAddress"`
+	Port        string `json:"Port"`
+	Id          string `json:"Id"`
+	QueuePort   string `json:QueuePort`
+	IsAvailable bool   `json:IsAvailable`
 }
 
 // NewNetworkTuple creates a new instance of network tuple
-func NewNetworkTuple(id string, ipAddress string, port string) NetworkTuple {
+func NewNetworkTuple(id string, ipAddress string, port string, queuePort string) NetworkTuple {
 	return &networktuple{
-		IpAddress: ipAddress,
-		Port:      port,
-		Id:        id,
+		IpAddress:   ipAddress,
+		Port:        port,
+		Id:          id,
+		QueuePort:   queuePort,
+		IsAvailable: true,
 	}
 }
 
@@ -32,4 +39,16 @@ func (nt *networktuple) GetPort() string {
 
 func (nt *networktuple) GetId() string {
 	return nt.Id
+}
+
+func (nt *networktuple) GetQueuePort() string {
+	return nt.QueuePort
+}
+
+func (nt *networktuple) GetAvailableStatus() bool {
+	return nt.IsAvailable
+}
+
+func (nt *networktuple) SetIsAvailable(isAvailable bool) {
+	nt.IsAvailable = isAvailable
 }
