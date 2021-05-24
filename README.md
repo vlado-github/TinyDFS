@@ -1,7 +1,6 @@
 TinyDFS
 =======
 
-A learning project.
 TinyDFS is a distributed log storage.
 
 - Database is key-value and uses files for storage.
