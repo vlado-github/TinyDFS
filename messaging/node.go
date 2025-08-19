@@ -2,9 +2,9 @@ package messaging
 
 import (
 	"encoding/json"
-	"logging"
+	"github.com/vlado-github/tinydfs/logging"
 	"net"
-	"persistance"
+	"github.com/vlado-github/tinydfs/persistance"
 	"time"
 
 	"math/rand"

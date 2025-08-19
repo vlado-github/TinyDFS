@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"logging"
+	"github.com/vlado-github/tinydfs/logging"
 	"os"
 	"path"
 	"strings"

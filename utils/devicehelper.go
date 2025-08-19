@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"logging"
+	"github.com/vlado-github/tinydfs/logging"
 	"net"
 )
 

@@ -3,11 +3,12 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"logging"
-	"messaging"
 	"os"
 	"strings"
-	"utils"
+
+	"github.com/vlado-github/tinydfs/logging"
+	"github.com/vlado-github/tinydfs/messaging"
+	"github.com/vlado-github/tinydfs/utils"
 
 	"github.com/google/uuid"
 )

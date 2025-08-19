@@ -2,7 +2,7 @@ package messaging
 
 import (
 	"encoding/json"
-	"logging"
+	"github.com/vlado-github/tinydfs/logging"
 
 	"net"
 	"os"

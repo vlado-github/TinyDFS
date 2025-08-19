@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"messaging"
 	"strconv"
+
+	"github.com/vlado-github/tinydfs/messaging"
 )
 
 func printWelcome() {
