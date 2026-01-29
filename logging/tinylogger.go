@@ -114,7 +114,7 @@ func Close() {
 func createDestinationFile(filename string) *os.File {
 	err := os.MkdirAll(config.pathToLogDir, os.ModePerm)
 	if err != nil {
-		fmt.Println("Persistance: Can not create a directory.", err.Error())
+		fmt.Println("Persistence: Can not create a directory.", err.Error())
 		log.Fatal(err)
 	}
 	pathToFile := path.Clean(path.Join(config.pathToLogDir, filename))

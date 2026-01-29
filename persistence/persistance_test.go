@@ -1,4 +1,4 @@
-package persistance
+package persistence
 
 import (
 	"fmt"
@@ -30,7 +30,7 @@ func TestMain(m *testing.M) {
 func TestFileManager_Write(t *testing.T) {
 	cmd := Command{
 		Key:   uuid.New(),
-		Text:  "This is testing message for persistance: writing.",
+		Text:  "This is testing message for persistence: writing.",
 		Topic: topic,
 	}
 	err := fm.Write(cmd)
@@ -43,17 +43,17 @@ func TestFileManager_UpdateShort(t *testing.T) {
 	keyForUpdate := uuid.New()
 	cmd01 := Command{
 		Key:   uuid.New(),
-		Text:  "This is testing message for persistance: updatingShort01.",
+		Text:  "This is testing message for persistence: updatingShort01.",
 		Topic: topic,
 	}
 	cmd02 := Command{
 		Key:   keyForUpdate,
-		Text:  "This is testing message for persistance: updatingShort02.",
+		Text:  "This is testing message for persistence: updatingShort02.",
 		Topic: topic,
 	}
 	cmd03 := Command{
 		Key:   uuid.New(),
-		Text:  "This is testing message for persistance: updatingShort03.",
+		Text:  "This is testing message for persistence: updatingShort03.",
 		Topic: topic,
 	}
 	err01 := fm.Write(cmd01)
@@ -91,17 +91,17 @@ func TestFileManager_UpdateLong(t *testing.T) {
 	keyForUpdate := uuid.New()
 	cmd01 := Command{
 		Key:   uuid.New(),
-		Text:  "This is testing message for persistance: updating01.",
+		Text:  "This is testing message for persistence: updating01.",
 		Topic: topic,
 	}
 	cmd02 := Command{
 		Key:   keyForUpdate,
-		Text:  "This is testing message for persistance: updating02.",
+		Text:  "This is testing message for persistence: updating02.",
 		Topic: topic,
 	}
 	cmd03 := Command{
 		Key:   uuid.New(),
-		Text:  "This is testing message for persistance: updating03.",
+		Text:  "This is testing message for persistence: updating03.",
 		Topic: topic,
 	}
 	err01 := fm.Write(cmd01)
@@ -137,7 +137,7 @@ func TestFileManager_Read(t *testing.T) {
 	key := uuid.New()
 	cmd := Command{
 		Key:   key,
-		Text:  "This is testing message for persistance: read line.",
+		Text:  "This is testing message for persistence: read line.",
 		Topic: topic,
 	}
 	err := fm.Write(cmd)
@@ -161,7 +161,7 @@ func TestFileManager_ReadFile(t *testing.T) {
 	key := uuid.New()
 	cmd := Command{
 		Key:   key,
-		Text:  "This is testing message for persistance: read file.",
+		Text:  "This is testing message for persistence: read file.",
 		Topic: topic,
 	}
 	err := fm.Write(cmd)

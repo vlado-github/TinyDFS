@@ -1,16 +1,16 @@
-package persistance
+package persistence
 
 import (
 	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"github.com/vlado-github/tinydfs/logging"
 	"os"
 	"path"
 	"strings"
 	"sync"
+
+	"github.com/vlado-github/tinydfs/logging"
 )
 
 type FileManager interface {
@@ -33,7 +33,7 @@ func NewFileManager(pathDir string) FileManager {
 	pathToDir := path.Clean(path.Join(pathDir))
 	err := os.MkdirAll(pathToDir, os.ModePerm)
 	if err != nil {
-		logging.AddError("Persistance: Can not create a directory.", err.Error())
+		logging.AddError("Persistence: Can not create a directory.", err.Error())
 	}
 
 	return &fileManager{
@@ -46,11 +46,14 @@ func (fm *fileManager) Write(command Command) error {
 	defer mutex.Unlock()
 	pathToFile := path.Clean(path.Join(fm.pathToDir, command.Topic))
 	f, err := createOrAppendFile(pathToFile)
+	if err != nil {
+		logging.AddError("Persistence: Create/append to file failed.", err.Error())
+	}
 	defer f.Close()
 	w := bufio.NewWriter(f)
 	size, err := fmt.Fprint(w, command.Key.String()+":"+command.Text)
 	if err != nil {
-		logging.AddError("Persistance: Write to file failed.", size, err.Error())
+		logging.AddError("Persistence: Write to file failed.", size, err.Error())
 	}
 	w.Flush()
 	return err
@@ -135,11 +138,9 @@ func (fm *fileManager) Read(query Query) (string, error) {
 
 func (fm *fileManager) ReadFile(topic string) ([]byte, error) {
 	pathToFile := path.Clean(path.Join(fm.pathToDir, topic))
-	byteArray, err := ioutil.ReadFile(pathToFile)
+	byteArray, err := os.ReadFile(pathToFile)
 	if err != nil {
-		if err != nil {
-			logging.AddError("Persistance: Can not create a file.", err.Error())
-		}
+		logging.AddError("Persistence: Can not create a file.", err.Error())
 	}
 	return byteArray, err
 }
@@ -163,13 +164,13 @@ func createOrAppendFile(pathToFile string) (*os.File, error) {
 	if os.IsNotExist(err) {
 		f, err := os.Create(pathToFile)
 		if err != nil {
-			logging.AddError("Persistance: Can not create a file.", err.Error())
+			logging.AddError("Persistence: Can not create a file.", err.Error())
 		}
 		return f, err
 	}
 	f, err := os.OpenFile(pathToFile, os.O_RDWR|os.O_APPEND, 0660)
 	if err != nil {
-		logging.AddError("Persistance: Can not create a file.", err.Error())
+		logging.AddError("Persistence: Can not create a file.", err.Error())
 	}
 
 	return f, err

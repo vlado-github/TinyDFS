@@ -1,8 +1,9 @@
-package persistance
+package persistence
 
 import "github.com/google/uuid"
 
-type Query struct {
+type Command struct {
 	Key   uuid.UUID
 	Topic string
+	Text  string
 }

@@ -2,10 +2,10 @@ package messaging
 
 import (
 	"encoding/json"
-	"github.com/vlado-github/tinydfs/logging"
 	"net"
-	"github.com/vlado-github/tinydfs/persistance"
-	"time"
+
+	"github.com/vlado-github/tinydfs/logging"
+	"github.com/vlado-github/tinydfs/persistence"
 
 	"math/rand"
 
@@ -34,32 +34,32 @@ type node struct {
 	broadcastQueueConnParams  ConnParams
 	exchangeQueueConnParams   ConnParams
 	conn                      net.Conn
-	fileManager               persistance.FileManager
+	fileManager               persistence.FileManager
 	queue                     MessageQueue
 	onConnectionClosedHandler NodeHandlerFunc
 	onConnectionOpenedHandler NodeHandlerFunc
-	persistanceEnabled        bool
+	persistenceEnabled        bool
 	networkRegistry           NetworkRegistry
 }
 
 const MaxNumberOfConnAttempts int = 10
 
 // NewNode creates new instance of node
-func NewNode(exchangeQueueConn ConnParams, broadcastQueueConn ConnParams, persistanceEnabled bool) Node {
-	rand.Seed(time.Now().Unix())
+func NewNode(exchangeQueueConn ConnParams, broadcastQueueConn ConnParams, persistenceEnabled bool) Node {
+	rand.Int63()
 	uniqueID := uuid.New()
 	randomID := rand.Int()
-	fm := persistance.NewFileManager(getCurrentDirectory() + "//" + uniqueID.String())
+	fm := persistence.NewFileManager(getCurrentDirectory() + "//" + uniqueID.String())
 	msgQueue := NewQueue(exchangeQueueConn)
 
 	return &node{
-		id:                       uniqueID,
-		electionID:               randomID,
-		exchangeQueueConnParams:  exchangeQueueConn,
-		fileManager:              fm,
-		broadcastQueueConnParams: broadcastQueueConn,
-		persistanceEnabled:       persistanceEnabled,
-		queue:                    msgQueue,
+		id:                        uniqueID,
+		electionID:                randomID,
+		exchangeQueueConnParams:   exchangeQueueConn,
+		fileManager:               fm,
+		broadcastQueueConnParams:  broadcastQueueConn,
+		persistenceEnabled:        persistenceEnabled,
+		queue:                     msgQueue,
 		onConnectionClosedHandler: NewHandlerFunc(),
 		onConnectionOpenedHandler: NewHandlerFunc(),
 		networkRegistry:           NewNetworkRegistry(),
@@ -145,7 +145,7 @@ func (n *node) receiveMessages() {
 				n.onNetworkChanged(message)
 			} else {
 				var guid = uuid.New()
-				var cmd = persistance.Command{Key: guid, Text: string(message.Payload), Topic: message.Topic}
+				var cmd = persistence.Command{Key: guid, Text: string(message.Payload), Topic: message.Topic}
 				n.fileManager.Write(cmd)
 			}
 		}
